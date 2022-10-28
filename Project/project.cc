@@ -7,15 +7,14 @@ extern char blink_symb[16];
 
 void mainThread(void *arg);
 void project_init() {
-    static ThreadStatic<128> thread;
-    thread.init("Main Thread", osPriorityAboveNormal, mainThread);
+    static ThreadStatic thread;
+    thread.init(mainThread, nullptr, osPriorityAboveNormal, "Main Thread");
     strcpy(blink_symb, "");
 }
 
 auto &adc = adc1;
 auto &uart = uart1;
 auto &encoder = encoder1;
-auto &i2c = i2c2;
 OBD2 obd { can };
 Oled oled { i2c2 };
 String<128> f;
@@ -44,10 +43,9 @@ void mainThread(void *arg) {
 
     uart.init([](void *, size_t len) {
         auto *buf = uart.rxBuffer.data();
-        if (len >= 2) {
-            page = buf[0];
-            if (page % 2 == 0) pid = buf[1];
-        }
+        if (len < 2) return;
+        page = buf[0];
+        if (page % 2 == 0) pid = buf[1];
     });
 
     usb.setRxCallback([](void *, size_t len) { usb.transmit(usb.rxBuffer.data(), len); });
@@ -69,32 +67,32 @@ void mainThread(void *arg) {
         oled.setCursor(0, 0);
         if (page % 2 == 0) {
             oled << f("%02X %s\n", pid, OBD2::pidNames[pid]);
-            uart.writeBlocking((uint8_t *) f.data(), f.len());
+            uart << f.data();
 
             auto msg = obd.request(pid);
-            if (msg.errorStr)
+            if (msg.errorStr) // error message
                 oled << f("%s\n", msg.errorStr);
-            else if (msg.str)
+            else if (msg.str) // string message
                 oled << f("%s\n", msg.str);
-            else if (msg.u != 0x80000000)
-                oled << f("%ld.%02ld %s\n", msg.val / 100, msg.val % 100, OBD2::pidUnits[pid]);
-            else
+            else if (msg.u == 0x80000000) // raw data
                 oled << f("RAW: x%8lX\n", msg.raw);
+            else // actual data
+                oled << f("%ld.%02ld %s\n", msg.val / 100, msg.val % 100, OBD2::pidUnits[pid]);
 
-            uart.writeBlocking((uint8_t *) f.data(), f.len());
+            uart << f.data();
         }
         else {
             f("VIN: ");
             obd.requestVin(OBD2::VEHICLE_ID_NUMBER, f.end());
             f += '\n';
             oled << f.data();
-            uart.writeBlocking((uint8_t *) f.data(), f.len());
+            uart << f.data();
 
             f("ECU: ");
             obd.requestVin(OBD2::ECU_NAME, f.end());
             f += '\n';
             oled << f.data();
-            uart.writeBlocking((uint8_t *) f.data(), f.len());
+            uart << f.data();
         }
         oled.clear(oled.column, oled.row); // clear remaining space
     }
