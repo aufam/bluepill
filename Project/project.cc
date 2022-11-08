@@ -15,9 +15,9 @@ void project_init() {
 auto &adc = adc1;
 auto &uart = uart1;
 auto &encoder = encoder1;
-OBD2 obd { can };
-Oled oled { i2c2 };
-String<128> f;
+auto obd = OBD2 { can };
+auto oled = Oled { i2c2 };
+auto f = String<128> {};
 
 enum { EVENT_CLEAR, EVENT_BT_UP, EVENT_BT_DOWN, EVENT_BT_RIGHT, EVENT_BT_LEFT, EVENT_BT_ROT, EVENT_ROT_UP, EVENT_ROT_DOWN };
 QueueStatic<int, 1> event;
