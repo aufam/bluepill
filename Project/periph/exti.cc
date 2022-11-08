@@ -1,6 +1,6 @@
 #include "periph/exti.h"
 #include "stm32f1xx_hal_gpio.h"
-#include "os.h" // osKernelGetTickCount
+#include "cmsis_os2.h" // osKernelGetTickCount
 
 namespace Project::Periph {
 

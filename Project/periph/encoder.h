@@ -2,7 +2,7 @@
 #define PROJECT_ENCODER_H
 
 #include "tim.h"
-#include "os.h"
+#include "etl/timer.h"
 
 namespace Project::Periph {
 
@@ -19,7 +19,7 @@ namespace Project::Periph {
         int16_t val = 0; ///< current value
         int16_t valPrev = 0; ///< previous value
         int16_t speed = 0;
-        OS::TimerStatic timer;
+        etl::Timer timer;
         Callback incrementCB = {};
         Callback decrementCB = {};
         constexpr explicit Encoder(TIM_HandleTypeDef &htim) : htim(htim) {}

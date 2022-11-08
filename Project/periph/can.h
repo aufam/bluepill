@@ -2,7 +2,7 @@
 #define PROJECT_PERIPH_CAN_H
 
 #include "../../Core/Inc/can.h"
-#include "os.h"
+#include "etl/queue.h"
 
 namespace Project::Periph {
 
@@ -13,7 +13,7 @@ namespace Project::Periph {
             CAN_RxHeaderTypeDef rxHeader;
             uint8_t rxBuffer[8];
         };
-        using Queue = OS::QueueStatic<Msg, 1>; ///< CAN receive queue type definition
+        using Queue = etl::Queue<Msg, 1>; ///< CAN receive queue type definition
 
         CAN_HandleTypeDef &hcan;
         CAN_FilterTypeDef canFilter = {};

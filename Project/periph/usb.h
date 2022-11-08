@@ -2,7 +2,8 @@
 #define PROJECT_PERIPH_USB_H
 
 #include "usbd_cdc_if.h"
-#include "buffer.h"
+#include "etl/array.h"
+#include "etl/string.h"
 
 namespace Project::Periph {
 
@@ -14,7 +15,7 @@ namespace Project::Periph {
             Function fn;
             void *arg;
         };
-        using Buffer = Project::Buffer<uint8_t, APP_RX_DATA_SIZE>; ///< USB rx buffer type definition
+        using Buffer = etl::Array<uint8_t, APP_RX_DATA_SIZE>; ///< USB rx buffer type definition
 
         Callback rxCallback = {};
         Buffer &rxBuffer;

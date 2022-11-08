@@ -2,7 +2,7 @@
 #define PROJECT_PERIPH_RTC_H
 
 #include "../../Core/Inc/rtc.h"
-#include "os.h"
+#include "etl/timer.h"
 
 namespace Project::Periph {
 
@@ -19,7 +19,7 @@ namespace Project::Periph {
         };
         RTC_TimeTypeDef sTime = {};
         RTC_DateTypeDef sDate = {};
-        OS::TimerStatic timer;
+        etl::Timer timer;
         constexpr RealTimeClock() = default;
 
         void update(); ///< get time and date and store to sTime and sDate

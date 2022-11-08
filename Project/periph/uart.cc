@@ -5,7 +5,7 @@ namespace Project::Periph {
     void UART::init(Callback::Function rxCBFn, void *rxCBArg, Callback::Function txCBFn, void *txCBArg) {
         setRxCallback(rxCBFn, rxCBArg);
         setTxCallback(txCBFn, txCBArg);
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart, rxBuffer.begin(), Buffer::len());
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart, rxBuffer.begin(), Buffer::size());
         __HAL_DMA_DISABLE_IT(huart.hdmarx, DMA_IT_HT);
     }
 
@@ -42,7 +42,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 
     auto &cb = uart->rxCallback;
     if (cb.fn) cb.fn(cb.arg, Size);
-    HAL_UARTEx_ReceiveToIdle_DMA(&uart->huart, uart->rxBuffer.begin(), UART::Buffer::len());
+    HAL_UARTEx_ReceiveToIdle_DMA(&uart->huart, uart->rxBuffer.begin(), UART::Buffer::size());
     __HAL_DMA_DISABLE_IT(uart->huart.hdmarx, DMA_IT_HT);
 }
 

@@ -1,13 +1,19 @@
 #include "project.h"
 
+/// override operator new with malloc from @p heap_4.c
+void *operator new(size_t size) { return pvPortMalloc(size); }
+
+/// override operator delete with free from @p heap_4.c
+void operator delete(void *ptr) { vPortFree(ptr); }
+
 using namespace Project;
 using namespace Project::Periph;
-using namespace Project::OS;
+using namespace Project::etl;
 extern char blink_symb[16];
 
 void mainThread(void *arg);
 void project_init() {
-    static ThreadStatic thread;
+    static Thread<256> thread;
     thread.init(mainThread, nullptr, osPriorityAboveNormal, "Main Thread");
     strcpy(blink_symb, "");
 }
@@ -20,7 +26,7 @@ auto oled = Oled { i2c2 };
 auto f = String<128> {};
 
 enum { EVENT_CLEAR, EVENT_BT_UP, EVENT_BT_DOWN, EVENT_BT_RIGHT, EVENT_BT_LEFT, EVENT_BT_ROT, EVENT_ROT_UP, EVENT_ROT_DOWN };
-QueueStatic<int, 1> event;
+Queue<int, 1> event;
 uint8_t pid = 0;
 uint32_t page = 0;
 
@@ -40,6 +46,7 @@ void mainThread(void *arg) {
     exti.setCallback(button_rot_Pin, [](void *) { event << EVENT_BT_ROT; });
     encoder.init([](void *) { event << EVENT_ROT_UP; }, nullptr,
                  [](void *) { event << EVENT_ROT_DOWN; });
+
 
     uart.init([](void *, size_t len) {
         auto *buf = uart.rxBuffer.data();

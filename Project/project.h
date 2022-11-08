@@ -2,7 +2,14 @@
 #define PROJECT_H
 
 #ifdef __cplusplus
-#include "oled/oled.h"
+#include "etl/array.h"
+#include "etl/linked_list.h"
+#include "etl/mutex.h"
+#include "etl/queue.h"
+#include "etl/string.h"
+#include "etl/thread.h"
+#include "etl/timer.h"
+
 #include "periph/adc.h"
 #include "periph/encoder.h"
 #include "periph/can.h"
@@ -10,10 +17,10 @@
 #include "periph/rtc.h"
 #include "periph/uart.h"
 #include "periph/usb.h"
-#include "buffer.h"
+
+#include "eeprom.h"
+#include "oled/oled.h"
 #include "obd2.h"
-#include "os.h"
-#include "fstring.h"
 extern "C" {
 #endif
 

@@ -4,7 +4,6 @@
 #include "periph/can.h"
 #include "periph/uart.h"
 #include "periph/usb.h"
-#include "os.h"
 
 namespace Project {
 

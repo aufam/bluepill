@@ -1,7 +1,6 @@
 #ifndef PROJECT_PERIPH_EXTI_H
 #define PROJECT_PERIPH_EXTI_H
 
-
 #include "main.h"
 
 namespace Project::Periph {
@@ -29,6 +28,5 @@ namespace Project::Periph {
     inline Exti exti;
 
 } // namespace Project
-
 
 #endif // PROJECT_PERIPH_EXTI_H
