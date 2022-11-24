@@ -2,8 +2,7 @@
 #define PROJECT_OBD2_H
 
 #include "periph/can.h"
-#include "periph/uart.h"
-#include "periph/usb.h"
+#include "etl/queue.h"
 
 namespace Project {
 
@@ -18,15 +17,16 @@ namespace Project {
             const char *errorStr;
         };
         using CAN = Periph::CAN;
+        using Queue = etl::Queue<CAN::Message, 1>;
 
-        inline static const uint32_t txIdStd      = 0x7DFu;
-        inline static const uint32_t txIdExt      = 0x18DB33F1u;
-        inline static const uint32_t rxIdStd      = 0x7EFu;
-        inline static const uint32_t rxMaskStd    = 0x7E8u;
-        inline static const uint32_t rxIdExt      = 0x18DAF11Fu;
-        inline static const uint32_t rxMaskExt    = 0x18DAF110u;
-        inline static const uint32_t nPid         = 0x60u; ///< number of available parameter IDs
-        inline static const uint32_t waitResponseMs = 100; ///< maximum wait for response in ms
+        static const uint32_t txIdStd      = 0x7DFu;
+        static const uint32_t txIdExt      = 0x18DB33F1u;
+        static const uint32_t rxIdStd      = 0x7EFu;
+        static const uint32_t rxMaskStd    = 0x7E8u;
+        static const uint32_t rxIdExt      = 0x18DAF11Fu;
+        static const uint32_t rxMaskExt    = 0x18DAF110u;
+        static const uint32_t nPid         = 0x60u; ///< number of available parameter IDs
+        static const uint32_t waitResponseMs = 100; ///< maximum wait for response in ms
         static const char* const pidNames[nPid];
         static const char* const pidUnits[nPid];
         static const char* const fuelTypes[24];
@@ -34,8 +34,9 @@ namespace Project {
         static const char* const errorCode[6];
 
         CAN &can; ///< reference to CAN peripheral
+        Queue rxQueue;
         uint32_t supported[6]; ///< every bit represents if a parameter is supported
-        constexpr explicit OBD2(Periph::CAN &can) : can(can), supported{} {}
+        constexpr explicit OBD2(Periph::CAN &can) : can(can), rxQueue(), supported{} {}
 
         void init(); ///< CAN init and update supported buffer
         /// get list of parameter and store to supported buffer

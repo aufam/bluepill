@@ -11,8 +11,6 @@
 #include "mutex.h"
 #define ETL_LINKED_LIST_SCOPE_LOCK() MutexScope lock(mutex)
 #else
-#include <cstdint>
-#include <cstddef>
 #define ETL_LINKED_LIST_SCOPE_LOCK()
 #endif
 
@@ -45,8 +43,14 @@ namespace Project::etl {
 
             /// dereference operator
             /// @warning make sure node is not null
-            T& operator *()                               { return node->item; }
-            const T& operator *()                   const { return node->item; }
+            /// @{
+            T& operator *() { return node->item; }
+            const T& operator *() const { return node->item; }
+
+            T& operator[](int pos) { return *((*this) + pos); }
+            const T& operator[](int pos) const { return *((*this) + pos); }
+            /// @}
+
             bool operator ==(const Iterator& other) const { return node == other.node; }
             bool operator !=(const Iterator& other) const { return node != other.node; }
             explicit operator bool()                const { return node != nullptr; }
@@ -68,23 +72,26 @@ namespace Project::etl {
                 return res;
             }
 
-            T& operator[](int pos) { return *((*this) + pos); }
-            const T& operator[](int pos) const { return *((*this) + pos); }
+            Iterator& operator -=(int pos) { return operator+=(-pos); }
+            Iterator operator -(int pos) const { return operator+(-pos); }
 
+            /// prefix increment
             Iterator& operator ++() {
                 *this = next();
                 return *this;
             }
+            /// postfix increment
             Iterator operator ++(int) {
                 Iterator res = *this;
                 *this = next();
                 return res;
             }
-
+            /// prefix decrement
             Iterator& operator --() {
                 *this = prev();
                 return *this;
             }
+            /// postfix decrement
             Iterator operator --(int) {
                 Iterator res = *this;
                 *this = prev();
@@ -98,8 +105,8 @@ namespace Project::etl {
             /// @note other node and this node can't be null. other next and other prev have to be null
             int insert(Iterator other, bool nextOrPref = false) {
                 if (!node || !other || other.next() || other.prev()) return 0;
-                auto nx = next().node;
-                auto pv = prev().node;
+                auto nx = node->next;
+                auto pv = node->prev;
                 if (!nextOrPref) {
                     other.node->prev = node;
                     node->next = other.node;
@@ -127,6 +134,7 @@ namespace Project::etl {
             }
 
             /// detach and delete this iterator
+            /// @retval 1: success, 0: already detached or this node = null
             int erase() {
                 int res = detach();
                 delete node;
@@ -146,12 +154,15 @@ namespace Project::etl {
 #if ETL_LINKED_LIST_USE_MUTEX == 1
         int init()   const { return mutex.init(); } /// init mutex
         int deinit() const { clear(); return mutex.deinit(); } /// clear all item and deinit mutex
+#else
+        int init()   const { return osOK; }
+        int deinit() const { clear(); return osOK; }
 #endif
 
         Iterator data()  const { return head; }
         Iterator begin() const { return head; }
         Iterator end()   const { return { nullptr }; }
-        Iterator tail()  const { return head + (len() - 1); }
+        Iterator tail()  const { return head + (len() - 1); } /// last iterator in the linked list
 
         /// @retval number of items
         size_t len() const {
@@ -173,10 +184,11 @@ namespace Project::etl {
         T operator [](size_t i) const { auto iter = head + i; return iter ? *iter : T {}; }
 
         /// delete all items
-        void clear() const {
-            while (pop());
-        }
+        void clear() const { while (pop()); }
 
+        /// push an item to the tail
+        /// @param[in] item the item
+        /// @retval 1: success, 0: failed
         int push(const T& item) const {
             ETL_LINKED_LIST_SCOPE_LOCK();
             auto node = Iterator(item);
@@ -188,6 +200,10 @@ namespace Project::etl {
             return tail().insert(node);
         }
 
+        /// push an item given the position
+        /// @param[in] item the item
+        /// @param pos position relative to the head
+        /// @retval 1: success, 0: failed
         int push(const T& item, size_t pos) const {
             ETL_LINKED_LIST_SCOPE_LOCK();
             auto node = Iterator(item);
@@ -202,9 +218,13 @@ namespace Project::etl {
             return res;
         }
 
-        int pushBack(const T& item)  const { return push(item); }
-        int pushFront(const T& item) const { return push(item, 0); }
+        int pushBack(const T& item)  const { return push(item); }    /// push an item to the tail
+        int pushFront(const T& item) const { return push(item, 0); } /// push an item to the head
 
+        /// get an item given the position and delete it from the linked list
+        /// @param[out] item the item
+        /// @param pos position relative to the head
+        /// @retval 1: success, 0: failed
         int pop(T& item, size_t pos = 0) const {
             ETL_LINKED_LIST_SCOPE_LOCK();
             auto node = head + pos;
@@ -213,21 +233,29 @@ namespace Project::etl {
             return node.erase();
         }
 
-        int pop()             const { T dummy = {}; return pop(dummy, 0); }
-        int popBack()         const { T dummy = {}; return pop(dummy, len() - 1); }
-        int popFront()        const { T dummy = {}; return pop(dummy, 0); }
-        int popBack(T& item)  const { return pop(item, len() - 1); }
-        int popFront(T& item) const { return pop(item, 0); }
+        int pop()             const { T dummy = {}; return pop(dummy, 0); } /// delete first item
+        int popBack()         const { T dummy = {}; return pop(dummy, len() - 1); } /// delete last item
+        int popFront()        const { T dummy = {}; return pop(dummy, 0); } /// delete first item
+        int popBack(T& item)  const { return pop(item, len() - 1); } /// pop the last item
+        int popFront(T& item) const { return pop(item, 0); } /// pop the first item
 
-        explicit operator bool()                     const { return head; }
+        /// push operator
         const LinkedList& operator <<(const T& item) const { push(item); return *this; }
+        /// pop operator
         const LinkedList& operator >>(T& item)       const { pop(item); return *this; }
+        explicit operator bool()                     const { return head; }
 
+        /// set all item value
         void fill(const T& item) {
             ETL_LINKED_LIST_SCOPE_LOCK();
             for (T& it : *this) it = item;
         }
 
+        /// perform fn(result, item) for each item in this linked list
+        /// @tparam R result type
+        /// @param result[in,out] result
+        /// @param fn function pointer
+        /// @{
         template <class R>
         void fold(R& result, void (* fn)(R&, T&)) {
             ETL_LINKED_LIST_SCOPE_LOCK();
@@ -238,7 +266,11 @@ namespace Project::etl {
             ETL_LINKED_LIST_SCOPE_LOCK();
             for (const T& item : *this) fn(result, item);
         }
+        /// @}
 
+        /// perform fn(item) for each item in this linked list
+        /// @param fn function pointer
+        /// @{
         void foreach(void (* fn)(T&)) {
             ETL_LINKED_LIST_SCOPE_LOCK();
             for (T& item : *this) fn(item);
@@ -247,7 +279,10 @@ namespace Project::etl {
             ETL_LINKED_LIST_SCOPE_LOCK();
             for (const T& item : *this) fn(item);
         }
+        /// @}
 
+        /// check any
+        /// @retval if one of the items matches the condition
         bool any(bool (*check)(T&)) {
             ETL_LINKED_LIST_SCOPE_LOCK();
             for (T& item : *this) if (check(item)) return true;
@@ -263,7 +298,10 @@ namespace Project::etl {
             for (const T& item : *this) if (check == item) return true;
             return false;
         }
+        /// @}
 
+        /// check all
+        /// @retval if all the items matches the condition
         bool all(bool (*check)(T&)) {
             ETL_LINKED_LIST_SCOPE_LOCK();
             for (T& item : *this) if (!check(item)) return false;
@@ -279,6 +317,7 @@ namespace Project::etl {
             for (const T& item : *this) if (check != item) return false;
             return true;
         }
+        /// @}
     };
 
 }

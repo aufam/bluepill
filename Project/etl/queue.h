@@ -15,21 +15,21 @@ namespace Project::etl {
         typedef T Type;
         osMessageQueueId_t id;
         T buffer[N];
-        StaticQueue_t controlblock;
-        constexpr Queue() : id(nullptr), buffer{}, controlblock{} {}
+        StaticQueue_t controlBlock;
+        constexpr Queue() : id(nullptr), buffer{}, controlBlock{} {}
 
         /// initiate mutex
         /// @param name string name, default null
         /// @retval @p osOK: success, @p osError: failed (already initiated)
         osStatus_t init(const char *name = nullptr) {
-            if (this->id) return osError;
+            if (id) return osError;
             osMessageQueueAttr_t attr = {};
             attr.name = name;
-            attr.cb_mem = &controlblock;
-            attr.cb_size = sizeof(controlblock);
+            attr.cb_mem = &controlBlock;
+            attr.cb_size = sizeof(controlBlock);
             attr.mq_mem = buffer;
             attr.mq_size = sizeof(buffer);
-            this->id = osMessageQueueNew(N, sizeof(T), &attr);
+            id = osMessageQueueNew(N, sizeof(T), &attr);
             return osOK;
         }
 
@@ -53,7 +53,7 @@ namespace Project::etl {
         /// pop first item from the queue
         /// @param[out] item the item
         /// @param[in] waitMs wait in ms, default 0
-        /// @param[out] prio pointer to priority level, default null (ignored)
+        /// @param[out] prio pointer to priority level, default null (ignore)
         /// @retval osStatusXxx
         osStatus_t pop(T &item, uint32_t waitMs = 0, uint8_t *prio = nullptr) {
             return osMessageQueueGet(id, &item, prio, waitMs);

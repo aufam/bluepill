@@ -24,17 +24,27 @@ namespace Project::Periph {
         /// set rx callback
         /// @param rxCBFn receive callback function pointer
         /// @param rxCBArg receive callback function argument
-        void setRxCallback(Callback::Function rxCBFn, void *rxCBArg = nullptr);
+        void setRxCallback(Callback::Function rxCBFn, void *rxCBArg = nullptr) {
+            rxCallback.fn  = rxCBFn;
+            rxCallback.arg = rxCBArg;
+        }
+
         /// USB transmit non blocking
         /// @param buf data buffer
         /// @param len buffer length
         /// @retval USBD_StatusTypeDef (see usbd_def.h)
-        int transmit(const void *buf, uint16_t len);
+        int transmit(const void *buf, uint16_t len) {
+            return CDC_Transmit_FS((uint8_t *)buf, len);
+        }
 
+        /// string transmit operator
+        template <size_t N>
+        USBD &operator <<(const etl::String<N>& str) { transmit(str.data(), str.len()); return *this; }
         USBD &operator <<(const char *str) { transmit(str, strlen(str)); return *this; }
     };
 
     extern USBD usb;
+
 } // namespace Project
 
 

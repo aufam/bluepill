@@ -5,11 +5,12 @@
 
 namespace Project::Periph {
 
-    /// ADC peripheral class. requirements: DMA circular, temperature sensor channel, vref channel
+    /// ADC peripheral class
+    /// @note requirements: DMA circular, temperature sensor channel, vref channel
     struct ADC {
         enum {
-            INDEX_TEMP = 1, ///< index of internal temperature sensor
-            INDEX_VREF = 2, ///< index of voltage reference
+            INDEX_TEMP = 0, ///< index of internal temperature sensor
+            INDEX_VREF = 1, ///< index of voltage reference
             N_CHANNEL = 3,  ///< number of ADC channel(s)
         };
 
@@ -17,11 +18,35 @@ namespace Project::Periph {
         uint32_t buf[N_CHANNEL] = {}; ///< ADC buffer
         constexpr explicit ADC(ADC_HandleTypeDef &hadc) : hadc(hadc) {}
 
-        void init(); ///< ADC DMA circular start
-        void deinit(); ///< ADC DMA circular stop
-        uint32_t operator[](size_t index); ///< get ADC raw value given the index
-        float getTemp(); ///< get internal temperature in celsius
-        float getVref(); ///< get voltage reference in volt
+        /// ADC DMA circular start
+        void init() {
+            HAL_ADCEx_Calibration_Start(&hadc);
+            HAL_ADC_Start_DMA(&hadc, buf, N_CHANNEL);
+        }
+
+        /// ADC DMA circular stop
+        void deinit() {
+            HAL_ADC_Stop_DMA(&hadc);
+        }
+
+        /// get ADC raw value given the index
+        uint32_t operator[](size_t index) {
+            if (index >= N_CHANNEL) index = N_CHANNEL - 1;
+            return buf[index];
+        }
+
+        /// get internal temperature in celsius
+        float getTemp() {
+            float V25 = 1.43;
+            float Avg_Slope = 0.0043;
+            float VSENSE = float(buf[INDEX_TEMP]) * 3.3f / 4096.0f;
+            return (V25 - VSENSE) / Avg_Slope + 25;
+        }
+
+        /// get voltage reference in volt
+        float getVref() {
+            return float(buf[0]) * 3.3f / 4096.0f;
+        }
     };
 
     inline ADC adc1 { hadc1 };

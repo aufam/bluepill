@@ -7,7 +7,8 @@
 
 namespace Project::Periph {
 
-    /// UART peripheral class. requirements: global interrupt, rx DMA
+    /// UART peripheral class.
+    /// @note requirements: global interrupt, rx DMA
     struct UART {
         /// callback function class
         struct Callback {
@@ -28,12 +29,18 @@ namespace Project::Periph {
         /// @param rxCBArg receive callback function argument
         /// @param txCBFn transmit callback function pointer
         /// @param txCBArg transmit callback function argument
-        void init(
-                Callback::Function rxCBFn = nullptr, void *rxCBArg = nullptr,
-                Callback::Function txCBFn = nullptr, void *txCBArg = nullptr
-        );
-        /// stop receive DMA
-        void deinit();
+        void init(Callback::Function rxCBFn = nullptr, void *rxCBArg = nullptr,
+                  Callback::Function txCBFn = nullptr, void *txCBArg = nullptr)
+        {
+            setRxCallback(rxCBFn, rxCBArg);
+            setTxCallback(txCBFn, txCBArg);
+            HAL_UARTEx_ReceiveToIdle_DMA(&huart, rxBuffer.begin(), Buffer::size());
+            __HAL_DMA_DISABLE_IT(huart.hdmarx, DMA_IT_HT);
+        }
+
+        /// disable receive DMA
+        void deinit() { HAL_UART_DMAStop(&huart); }
+
         /// set rx callback
         /// @param rxCBFn receive callback function pointer
         /// @param rxCBArg receive callback function argument
@@ -41,6 +48,7 @@ namespace Project::Periph {
             rxCallback.fn  = rxCBFn;
             rxCallback.arg = rxCBArg;
         }
+
         /// set tx callback
         /// @param txCBFn transmit callback function pointer
         /// @param txCBArg transmit callback function argument
@@ -48,26 +56,41 @@ namespace Project::Periph {
             txCallback.fn  = txCBFn;
             txCallback.arg = txCBArg;
         }
+
         /// UART transmit blocking
         /// @param buf data buffer
         /// @param len buffer length
         /// @retval HAL_StatusTypeDef (see stm32fXxx_hal_def.h)
-        int writeBlocking(uint8_t *buf, uint16_t len);
+        int writeBlocking(uint8_t *buf, uint16_t len) {
+            while (huart.gState != HAL_UART_STATE_READY);
+            return HAL_UART_Transmit(&huart, buf, len, HAL_MAX_DELAY);
+        }
+
         /// UART transmit non blocking
         /// @param buf data buffer
         /// @param len buffer length
         /// @retval HAL_StatusTypeDef (see stm32fXxx_hal_def.h)
-        int write(uint8_t *buf, uint16_t len);
+        int write(uint8_t *buf, uint16_t len) {
+            return HAL_UART_Transmit_IT(&huart, buf, len);
+        }
 
-        void setBaudRate(uint32_t baud);
-        uint32_t getBaudRate() const;
+        void setBaudRate(uint32_t baud) {
+            huart.Init.BaudRate = baud;
+            HAL_UART_Init(&huart);
+        }
 
+        uint32_t getBaudRate() const {
+            return huart.Init.BaudRate;
+        }
+
+        /// write blocking operator
         UART &operator <<(const char *str) { writeBlocking((uint8_t *)str, strlen(str)); return *this; }
     };
 
     /// UART 1, baud rate 9600
     inline UART uart1 { huart1 };
-    /// UART 2, baud rate 115200
+
+    /// UART 1, baud rate 115200
     inline UART uart2 { huart2 };
 
 } // namespace Project

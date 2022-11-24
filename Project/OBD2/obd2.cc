@@ -3,7 +3,12 @@
 namespace Project {
 
 	void OBD2::init() {
-		can.init(txIdStd);
+        auto cb = [](void* arg, CAN::Message& msg) {
+            auto &rxQueue = ((OBD2 *)arg)->rxQueue;
+            if (rxQueue) rxQueue.clear();
+            rxQueue << msg;
+        };
+		can.init(txIdStd, false, cb, this);
         can.setFilter(rxIdStd, rxMaskStd);
 		if (getSupported() == 0) return;
 
@@ -46,23 +51,22 @@ namespace Project {
 			return msg;
 		}
 
-		can.rxQueue.clear();
 		uint8_t txBuffer[8] = {0x02, SHOW_CURRENT_DATA, pid, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
 		can.transmit(txBuffer);
 
 		// wait for response
-		CAN::Msg canMsg = {};
-		auto res = can.rxQueue.pop(canMsg, waitResponseMs);
+		CAN::Message canMsg = {};
+		auto res = rxQueue.pop(canMsg, waitResponseMs);
 		if (res != osOK) {
 			msg.errorStr = errorCode[-res - 1];
 			return msg;
 		}
 
 		// get raw val
-		auto rawLen = canMsg.rxBuffer[0] - 2;
-		auto &rawMode = canMsg.rxBuffer[1];
-		auto &rawPid = canMsg.rxBuffer[2];
-		auto *rawData = canMsg.rxBuffer + 3;
+		auto rawLen = canMsg.data[0] - 2;
+		auto &rawMode = canMsg.data[1];
+		auto &rawPid = canMsg.data[2];
+		auto *rawData = canMsg.data + 3;
 		bool check = (SHOW_CURRENT_DATA | 0x40) == rawMode && pid == rawPid;
 		if (!check) {
 			msg.errorStr = errorCode[ERROR_CHECK];
@@ -221,26 +225,25 @@ namespace Project {
 		Msg msg = {};
 		if (vin != VEHICLE_ID_NUMBER && vin != ECU_NAME) return msg;
 
-		can.rxQueue.clear();
 		uint8_t txBuffer[8] = {0x02, REQUEST_VEHICLE_INFORMATION, vin, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
 		can.transmit(txBuffer);
 
 		// wait for response
-		CAN::Msg canMsg = {};
-		auto res = can.rxQueue.pop(canMsg, waitResponseMs);
+		CAN::Message canMsg = {};
+		auto res = rxQueue.pop(canMsg, waitResponseMs);
 		if (res != osOK) {
 			msg.errorStr = errorCode[-res - 1];
 			return msg;
 		}
 
 		// first chunk, read 3 bytes
-		if (canMsg.rxBuffer[0] != 0x10) {
+		if (canMsg.data[0] != 0x10) {
 			msg.errorStr = errorCode[4];
 			return msg;
 		}
-		txt[0] = canMsg.rxBuffer[5];
-		txt[1] = canMsg.rxBuffer[6];
-		txt[2] = canMsg.rxBuffer[7];
+		txt[0] = canMsg.data[5];
+		txt[1] = canMsg.data[6];
+		txt[2] = canMsg.data[7];
 
 		// request more
 		uint8_t txBuffer2[8] = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -248,10 +251,10 @@ namespace Project {
 
 		uint8_t maxN = vin == VEHICLE_ID_NUMBER ? 17 : 20;
 		for (uint8_t i = 1, n = 3; n < maxN; i++) {
-			res = can.rxQueue.pop(canMsg, waitResponseMs);
-			if (res != osOK || canMsg.rxBuffer[0] != (0x20 + i)) return msg;
+			res = rxQueue.pop(canMsg, waitResponseMs);
+			if (res != osOK || canMsg.data[0] != (0x20 + i)) return msg;
 			for (int j = 1; j < 8 && n < maxN; j++, n++)
-				txt[n] = canMsg.rxBuffer[j];
+				txt[n] = canMsg.data[j];
 		}
 		return msg;
 	}

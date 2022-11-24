@@ -15,14 +15,21 @@ namespace Project::Periph {
         };
 
         Callback callbacks[16] = {}; ///< list of callback function of every GPIO pin
-        inline static const uint32_t debounceDelay = 250; ///< button debounce delay
+        static const uint32_t debounceDelay = 250; ///< button debounce delay
         constexpr Exti() = default;
 
         /// set exti callback of given GPIO pin
         /// @param pin GPIO_PIN_X see stm32fXxx_hal_gpio.h
         /// @param fn function pointer
         /// @param arg function argument
-        void setCallback(uint16_t pin, Callback::Function fn = nullptr, void *arg = nullptr);
+        void setCallback(uint16_t pin, Callback::Function fn = nullptr, void *arg = nullptr) {
+            size_t index = 0;
+            for (uint32_t b = 1; index < 16; index++)
+                if ((b << index) & pin) {
+                    callbacks[index].fn = fn;
+                    callbacks[index].arg = arg;
+                }
+        }
     };
 
     inline Exti exti;
