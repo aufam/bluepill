@@ -14,11 +14,11 @@ namespace Project {
     }
 
     int Oled::writeCmd(uint8_t cmd) const {
-        return i2c.writeBlocking(slaveAddr, ID_CMD, &cmd, 1);
+        return i2c.writeBlocking(slaveAddr, ID_CMD, &cmd, 1, 100);
     }
 
     int Oled::writeData(uint8_t *data, uint16_t len) {
-        return i2c.writeBlocking(slaveAddr, ID_DATA, data, len);
+        return i2c.writeBlocking(slaveAddr, ID_DATA, data, len, 100);
     }
 
     int Oled::print(char ch, bool invertColor) {

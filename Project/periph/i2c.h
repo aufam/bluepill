@@ -33,13 +33,17 @@ namespace Project::Periph {
         /// @param buf data buffer, either memory-fixed buffer or temporary buffer (max. 4 bytes)
         /// @param len buffer length
         /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
-        int writeBlocking(uint16_t deviceAddr, uint16_t memAddr, uint8_t *buf, uint16_t len) {
+        int writeBlocking(uint16_t deviceAddr,
+                          uint16_t memAddr,
+                          uint8_t *buf,
+                          uint16_t len,
+                          uint32_t timeout = HAL_MAX_DELAY) {
             while (hi2c.State != HAL_I2C_STATE_READY);
             return HAL_I2C_Mem_Write(&hi2c,
                                      deviceAddr,
                                      memAddr,
                                      1, buf, len,
-                                     HAL_MAX_DELAY);
+                                     timeout);
         }
 
         /// I2C transmit non blocking
@@ -84,13 +88,17 @@ namespace Project::Periph {
         /// @param buf data buffer, either memory-fixed buffer or temporary buffer (max. 4 bytes)
         /// @param len buffer length
         /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
-        int readBlocking(uint16_t deviceAddr, uint16_t memAddr, uint8_t *buf, uint16_t len) {
+        int readBlocking(uint16_t deviceAddr,
+                         uint16_t memAddr,
+                         uint8_t *buf,
+                         uint16_t len,
+                         uint32_t timeout = HAL_MAX_DELAY) {
             while (hi2c.State != HAL_I2C_STATE_READY);
             return HAL_I2C_Mem_Read(&hi2c,
                                      deviceAddr,
                                      memAddr,
                                      1, buf, len,
-                                     HAL_MAX_DELAY);
+                                     timeout);
         }
     };
 
