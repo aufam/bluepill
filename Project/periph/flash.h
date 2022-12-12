@@ -12,6 +12,11 @@ namespace Project::Periph {
         static constexpr uint32_t pageNumber = 1; /// number of page that will be allocated as EEPROM
         static constexpr uint32_t pageOffset = 127; /// select page offset, default last page = 127 (for 128K flash)
         static constexpr uint32_t pageAddress = 0x08000000 + pageOffset * FLASH_PAGE_SIZE;
+        inline static FLASH_EraseInitTypeDef EraseInitStruct = {
+                .TypeErase = FLASH_TYPEERASE_PAGES,
+                .Banks = 0,
+                .PageAddress = pageAddress,
+                .NbPages = pageNumber };
 
         union { T data; uint32_t buffer[(sizeof (T) + 3) / 4]; };
         uint32_t crc;
@@ -22,10 +27,6 @@ namespace Project::Periph {
         /// @retval see @p HAL_StatusTypeDef
         HAL_StatusTypeDef erase() {
             HAL_FLASH_Unlock();
-            FLASH_EraseInitTypeDef EraseInitStruct = { .TypeErase = FLASH_TYPEERASE_PAGES,
-                                                       .Banks = 0,
-                                                       .PageAddress = pageAddress,
-                                                       .NbPages = pageNumber };
             uint32_t dummy;
             auto res = HAL_FLASHEx_Erase(&EraseInitStruct, &dummy);
             HAL_FLASH_Lock();
@@ -36,17 +37,13 @@ namespace Project::Periph {
         /// @retval see @p HAL_StatusTypeDef
         HAL_StatusTypeDef write() {
             HAL_FLASH_Unlock();
-            FLASH_EraseInitTypeDef EraseInitStruct = { .TypeErase = FLASH_TYPEERASE_PAGES,
-                                                       .Banks = 0,
-                                                       .PageAddress = pageAddress,
-                                                       .NbPages = pageNumber };
-            uint32_t dummy;
+            uint32_t dummy, address = pageAddress;
             auto res = HAL_FLASHEx_Erase(&EraseInitStruct, &dummy);
             if (res != HAL_OK) goto lock;
 
             crc = calculateCRC();
-            for (auto ptr = (uint32_t *) this; ptr <= &crc; ptr++) {
-                res = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, pageAddress, *ptr);
+            for (auto ptr = (uint32_t *) this; ptr <= &crc; ptr++, address += 4) {
+                res = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address, *ptr);
                 if (res != HAL_OK) goto lock;
             }
 
