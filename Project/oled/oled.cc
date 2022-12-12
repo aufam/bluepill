@@ -105,7 +105,9 @@ namespace Project {
             if (rowStart >= screenRows()) break; // rowStart exceeds screen rows
             setCursor(columnStart, rowStart);
             res = print(*ch, invertColor);
-            if (res == -2) setColumn(0); // column still exceeds screen width
+            if (res != -2) continue;
+            // column still exceeds screen width
+            setColumn(0);
             print(*ch, invertColor);
         }
         return 0;
