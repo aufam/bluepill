@@ -76,7 +76,7 @@ void mainThread(void *) {
                 oled << f("%s\n", msg.errorStr);
             else if (msg.str) // string message
                 oled << f("%s\n", msg.str);
-            else if (isnanf(msg.val) == 0x80000000) // raw data
+            else if (isnanf(msg.val)) // raw data
                 oled << f("RAW: x%8lX\n", msg.raw);
             else // actual data
                 oled << f("%.2f %s\n", msg.val, OBD2::pidUnits[pid]);
