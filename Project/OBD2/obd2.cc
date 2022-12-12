@@ -4,9 +4,9 @@ namespace Project {
 
 	void OBD2::init() {
         auto cb = [](void* arg, CAN::Message& msg) {
-            auto &rxQueue = ((OBD2 *)arg)->rxQueue;
-            if (rxQueue) rxQueue.clear();
-            rxQueue << msg;
+            auto &queue = ((OBD2 *)arg)->rxQueue;
+            if (queue) queue.clear();
+            queue << msg;
         };
 		can.init(txIdStd, false, cb, this);
         can.setFilter(rxIdStd, rxMaskStd);
@@ -51,6 +51,7 @@ namespace Project {
 			return msg;
 		}
 
+        rxQueue.clear();
 		uint8_t txBuffer[8] = {0x02, SHOW_CURRENT_DATA, pid, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
 		can.transmit(txBuffer);
 
@@ -79,9 +80,7 @@ namespace Project {
 
 		// set val
 		switch (pid) {
-			default:
-				msg.u = 0x80000000; // only raw data. set to max negative int
-				break;
+			default: break;
 			case RUN_TIME_SINCE_ENGINE_START:
 			case DISTANCE_TRAVELED_WITH_MIL_ON:
 			case DISTANCE_TRAVELED_SINCE_CODES_CLEARED:
@@ -90,9 +89,9 @@ namespace Project {
 			case INTAKE_MANIFOLD_ABSOLUTE_PRESSURE:
 			case VEHICLE_SPEED:
 			case WARM_UPS_SINCE_CODES_CLEARED:
-			case ABSOLULTE_BAROMETRIC_PRESSURE:
+			case ABSOLUTE_BAROMETRIC_PRESSURE:
 			case MAX_FUEL_AIR_EQUIV_RATIO:
-				msg.val = 100 * int32_t(msg.raw);
+				msg.val = float (msg.raw);
 				break;
 			case CALCULATED_ENGINE_LOAD:
 			case THROTTLE_POSITION:
@@ -109,7 +108,7 @@ namespace Project {
 			case ETHANOL_FUEL_PERCENTAGE:
 			case RELATIVE_ACCELERATOR_PEDAL_POSITTION:
 			case HYBRID_BATTERY_PACK_REMAINING_LIFE:
-				msg.val = int32_t(100 * float(msg.raw) / 2.55f);
+				msg.val = float(msg.raw) / 2.55f;
 				break;
 			case SHORT_TERM_FUEL_TRIM_BANK_1:
 			case LONG_TERM_FUEL_TRIM_BANK_1:
@@ -120,7 +119,7 @@ namespace Project {
 			case SHORT_TERM_OXYGEN_TRIM_BANK_2:
 			case LONG_TERM_OXYGEN_TRIM_BANK_2:
 			case EGR_ERROR:
-				msg.val = int32_t(100 * float(msg.raw) / 1.28f - 100.f);
+				msg.val = float(msg.raw) / 1.28f - 100.f;
 				break;
 			case OXYGEN_SENSOR_1_SHORT_TERM_FUEL_TRIM:
 			case OXYGEN_SENSOR_2_SHORT_TERM_FUEL_TRIM:
@@ -131,33 +130,33 @@ namespace Project {
 			case OXYGEN_SENSOR_7_SHORT_TERM_FUEL_TRIM:
 			case OXYGEN_SENSOR_8_SHORT_TERM_FUEL_TRIM:
 			case ABSOLUTE_EVAP_SYSTEM_VAPOR_PRESSURE:
-				msg.val = int32_t(100 * float(msg.raw) * 0.005f);
+				msg.val = float(msg.raw) * 0.005f;
 				break;
 			case ENGINE_COOLANT_TEMPERATURE:
 			case AIR_INTAKE_TEMPERATURE:
 			case AMBIENT_AIR_TEMPERATURE:
 			case ENGINE_OIL_TEMPERATURE:
-				msg.val = 100 * (int32_t(msg.raw) - 40);
+				msg.val = float (msg.raw) - 40.f;
 				break;
 			case FUEL_PRESSURE:
-				msg.val = 100 * int32_t(msg.raw) * 3;
+				msg.val = float (msg.raw) * 3.f;
 				break;
 			case ENGINE_RPM:
-				msg.val = 100 * int32_t(msg.raw) / 4;
+				msg.val = float (msg.raw) / 4.f;
 				break;
 			case TIMING_ADVANCE:
-				msg.val = int32_t(100 * float(msg.raw) / 2.0f - 64);
+				msg.val = float(msg.raw) / 2.0f - 64;
 				break;
 			case MAF_AIR_FLOW_RATE:
-				msg.val = 100 * int32_t(msg.raw) / 100;
+				msg.val = float (msg.raw) / 100.f;
 				break;
 			case FUEL_RAIL_PRESSURE:
-				msg.val = int32_t(100 * float(msg.raw) * 0.079f);
+				msg.val = float(msg.raw) * 0.079f;
 				break;
 			case FUEL_RAIL_GAUGE_PRESSURE:
 			case FUEL_RAIL_ABSOLUTE_PRESSURE:
 			case MAX_AIR_FLOW_RATE_FROM_MAF:
-				msg.val = 100 * int32_t(msg.raw) * 10;
+				msg.val = float (msg.raw) * 10.f;
 				break;
 			case OXYGEN_SENSOR_1_FUEL_AIR_EQUIVALENCE_RATIO_V:
 			case OXYGEN_SENSOR_2_FUEL_AIR_EQUIVALENCE_RATIO_V:
@@ -176,31 +175,31 @@ namespace Project {
 			case OXYGEN_SENSOR_7_FUEL_AIR_EQUIVALENCE_RATIO:
 			case OXYGEN_SENSOR_8_FUEL_AIR_EQUIVALENCE_RATIO:
 			case FUEL_AIR_COMMANDED_EQUIVALENCE_RATE:
-				msg.val = int32_t(100 * float(msg.raw) / 32768.f);
+				msg.val = float(msg.raw) / 32768.f;
 				break;
 			case EVAP_SYSTEM_VAPOR_PRESSURE:
-				msg.val = int32_t(100 * float(msg.raw) / 4.f);
+				msg.val = float(msg.raw) / 4.f;
 				break;
 			case CATALYST_TEMPERATURE_BANK_1_SENSOR_1:
 			case CATALYST_TEMPERATURE_BANK_2_SENSOR_1:
 			case CATALYST_TEMPERATURE_BANK_1_SENSOR_2:
 			case CATALYST_TEMPERATURE_BANK_2_SENSOR_2:
-				msg.val = int32_t(100 * (float(msg.raw) / 10.f - 40));
+				msg.val = float(msg.raw) / 10.f - 40;
 				break;
 			case CONTROL_MODULE_VOLTAGE:
-				msg.val = int32_t(100 * float(msg.raw) / 1000.f);
+				msg.val = float(msg.raw) / 1000.f;
 				break;
 			case ABSOLUTE_LOAD_VALUE:
-				msg.val = int32_t(100 * float(msg.raw) / 2.55f);
+				msg.val = float(msg.raw) / 2.55f;
 				break;
 			case EVAP_SYSTEM_VAPOR_PRESSURE2:
-				msg.val = 100 * (int32_t(msg.raw) - 32767) / 1000; // Pa to kPa
+				msg.val = float (int32_t(msg.raw) - 32767) / 1000.f; // Pa to kPa
 				break;
 			case FUEL_INJECTION_TIMING:
-				msg.val = int32_t(100 * (float(msg.raw) / 128.f - 210));
+				msg.val = float(msg.raw) / 128.f - 210.f;
 				break;
 			case ENGINE_FUEL_RATE:
-				msg.val = 100 * int32_t(msg.raw) / 20;
+				msg.val = float (msg.raw) / 20.f;
 				break;
 		}
 
@@ -225,6 +224,7 @@ namespace Project {
 		Msg msg = {};
 		if (vin != VEHICLE_ID_NUMBER && vin != ECU_NAME) return msg;
 
+        rxQueue.clear();
 		uint8_t txBuffer[8] = {0x02, REQUEST_VEHICLE_INFORMATION, vin, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
 		can.transmit(txBuffer);
 

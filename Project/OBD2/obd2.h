@@ -3,18 +3,16 @@
 
 #include "periph/can.h"
 #include "etl/queue.h"
+#include <cmath>
 
 namespace Project {
 
     struct OBD2 {
         struct Msg {
-            uint32_t raw;
-            union { 
-                int32_t val; ///< actual value with 2 decimal points
-                uint32_t u; ///< unsigned version of val, if u == 0x80000000 -> val is invalid
-            };
-            const char *str;
-            const char *errorStr;
+            uint32_t raw = 0;
+            float val = NAN;
+            const char *str = nullptr;
+            const char *errorStr = nullptr;
         };
         using CAN = Periph::CAN;
         using Queue = etl::Queue<CAN::Message, 1>;
@@ -146,7 +144,7 @@ namespace Project {
             WARM_UPS_SINCE_CODES_CLEARED                      = 0x30,
             DISTANCE_TRAVELED_SINCE_CODES_CLEARED             = 0x31,
             EVAP_SYSTEM_VAPOR_PRESSURE                        = 0x32,
-            ABSOLULTE_BAROMETRIC_PRESSURE                     = 0x33,
+            ABSOLUTE_BAROMETRIC_PRESSURE                      = 0x33,
             OXYGEN_SENSOR_1_FUEL_AIR_EQUIVALENCE_RATIO        = 0x34,
             OXYGEN_SENSOR_2_FUEL_AIR_EQUIVALENCE_RATIO        = 0x35,
             OXYGEN_SENSOR_3_FUEL_AIR_EQUIVALENCE_RATIO        = 0x36,

@@ -9,7 +9,7 @@ void *operator new(size_t size) { return pvPortMalloc(size); }
 /// override operator delete with free from @p heap_4.c
 void operator delete(void *ptr) { vPortFree(ptr); }
 
-void mainThread(void *arg);
+void mainThread(void *);
 void project_init() {
     static Thread<256> thread;
     thread.init(mainThread, nullptr, osPriorityAboveNormal, "Main Thread");
@@ -28,31 +28,29 @@ Queue<int, 1> event;
 uint8_t pid = 0;
 uint32_t page = 0;
 
-void mainThread(void *arg) {
-    (void) arg;
-
+void mainThread(void *) {
     obd.init();
     oled.init();
     rtc.init();
     adc.init();
     event.init();
 
-    exti.setCallback(button_up_Pin, [](void *) { event << EVENT_BT_UP; });
-    exti.setCallback(button_down_Pin, [](void *) { event << EVENT_BT_DOWN; });
-    exti.setCallback(button_right_Pin, [](void *) { event << EVENT_BT_RIGHT; });
-    exti.setCallback(button_left_Pin, [](void *) { event << EVENT_BT_LEFT; });
-    exti.setCallback(button_rot_Pin, [](void *) { event << EVENT_BT_ROT; });
-    encoder.init([](void *) { event << EVENT_ROT_UP; }, nullptr,
-                 [](void *) { event << EVENT_ROT_DOWN; });
+    exti.setCallback(button_up_Pin, [](auto) { event << EVENT_BT_UP; });
+    exti.setCallback(button_down_Pin, [](auto) { event << EVENT_BT_DOWN; });
+    exti.setCallback(button_right_Pin, [](auto) { event << EVENT_BT_RIGHT; });
+    exti.setCallback(button_left_Pin, [](auto) { event << EVENT_BT_LEFT; });
+    exti.setCallback(button_rot_Pin, [](auto) { event << EVENT_BT_ROT; });
+    encoder.init([](auto) { event << EVENT_ROT_UP; }, nullptr,
+                 [](auto) { event << EVENT_ROT_DOWN; });
 
     uart.init([](void *, size_t len) {
-        auto *buf = uart.rxBuffer.data();
+        const auto &buf = uart.rxBuffer;
         if (len < 2) return;
         page = buf[0];
         if (page % 2 == 0) pid = buf[1];
     });
 
-    usb.setRxCallback([](void *, size_t len) { usb.transmit(usb.rxBuffer.data(), len); });
+    usb.setRxCallback([](auto, auto len) { usb.transmit(usb.rxBuffer.data(), len); });
 
     for(;;) {
         int evt = EVENT_CLEAR;
@@ -78,10 +76,10 @@ void mainThread(void *arg) {
                 oled << f("%s\n", msg.errorStr);
             else if (msg.str) // string message
                 oled << f("%s\n", msg.str);
-            else if (msg.u == 0x80000000) // raw data
+            else if (isnanf(msg.val) == 0x80000000) // raw data
                 oled << f("RAW: x%8lX\n", msg.raw);
             else // actual data
-                oled << f("%ld.%02ld %s\n", msg.val / 100, msg.val % 100, OBD2::pidUnits[pid]);
+                oled << f("%.2f %s\n", msg.val, OBD2::pidUnits[pid]);
 
             uart << f.data();
         }
@@ -98,6 +96,6 @@ void mainThread(void *arg) {
             oled << f.data();
             uart << f.data();
         }
-        oled.clear(oled.column, oled.row); // clear remaining space
+        oled.clearRemainingRows();
     }
 }
