@@ -24,7 +24,7 @@ namespace Project {
         static const uint32_t rxIdExt      = 0x18DAF11Fu;
         static const uint32_t rxMaskExt    = 0x18DAF110u;
         static const uint32_t nPid         = 0x60u; ///< number of available parameter IDs
-        static const uint32_t waitResponseMs = 100; ///< maximum wait for response in ms
+        static const uint32_t waitResponseMs = 300; ///< maximum wait for response in ms
         static const char* const pidNames[nPid];
         static const char* const pidUnits[nPid];
         static const char* const fuelTypes[24];
