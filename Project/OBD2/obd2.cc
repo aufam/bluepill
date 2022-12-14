@@ -8,6 +8,7 @@ namespace Project {
             if (queue) queue.clear();
             queue << msg;
         };
+        rxQueue.init();
 		can.init(txIdStd, false, cb, this);
         can.setFilter(rxIdStd, rxMaskStd);
 		if (getSupported() == 0) return;
