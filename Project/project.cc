@@ -13,7 +13,6 @@ void mainThread(void *);
 void project_init() {
     static Thread<256> thread;
     thread.init(mainThread, nullptr, osPriorityAboveNormal, "Main Thread");
-    strcpy(blinkSymbols, "");
 }
 
 auto &adc = adc1;
@@ -47,7 +46,7 @@ void mainThread(void *) {
         const auto &buf = uart.rxBuffer;
         if (len < 2) return;
         page = buf[0];
-        if (page % 2 == 0) pid = buf[1];
+        if (page % 4 == 0) pid = buf[1];
     });
 
     usb.setRxCallback([](auto, auto len) { usb.transmit(usb.rxBuffer.data(), len); });
@@ -67,7 +66,8 @@ void mainThread(void *) {
         }
 
         oled.setCursor(0, 0);
-        if (page % 2 == 0) {
+        auto num = page % 4;
+        if (num == 0) {
             oled << f("%02X %s\n", pid, OBD2::pidNames[pid]);
             uart << f.data();
 
@@ -82,8 +82,7 @@ void mainThread(void *) {
                 oled << f("%.2f %s\n", msg.val, OBD2::pidUnits[pid]);
 
             uart << f.data();
-        }
-        else {
+        } else if (num == 1) {
             f("VIN: ");
             obd.requestVin(OBD2::VEHICLE_ID_NUMBER, f.end());
             f += '\n';
@@ -95,6 +94,34 @@ void mainThread(void *) {
             f += '\n';
             oled << f.data();
             uart << f.data();
+        } else if (num == 2) {
+            auto msg = obd.request(OBD2::FUEL_TANK_LEVEL_INPUT);
+            oled << f("Fuel tank = %.2f %s\n", msg.val, OBD2::pidUnits[OBD2::FUEL_TANK_LEVEL_INPUT]);
+            msg = obd.request(OBD2::ENGINE_FUEL_RATE);
+            oled << f("Fuel rate = %.2f %s\n", msg.val, OBD2::pidUnits[OBD2::ENGINE_FUEL_RATE]);
+            msg = obd.request(OBD2::MAX_FUEL_AIR_EQUIV_RATIO);
+            oled << f("Max fuel air = %.2f %s\n", msg.val);
+            msg = obd.request(OBD2::FUEL_TYPE);
+            oled << f("Fuel type = %s\n", msg.str, OBD2::pidUnits[OBD2::MAX_FUEL_AIR_EQUIV_RATIO]);
+            msg = obd.request(OBD2::FUEL_INJECTION_TIMING);
+            oled << f("Fuel type = %.2f %s\n", msg.val, OBD2::pidUnits[OBD2::FUEL_INJECTION_TIMING]);
+        } else if (num == 3) {
+            oled << "Sniffing Mode\n";
+            CAN::Message canMsg = {};
+            auto res = obd.rxQueue.pop(canMsg, OBD2::waitResponseMs);
+            if (res == osOK) {
+                auto id = can.isUsingExtId() ? canMsg.rxHeader.ExtId : canMsg.rxHeader.StdId;
+                auto len = (uint8_t) canMsg.rxHeader.IDE;
+                auto data = canMsg.data;
+
+                f("%08X %02X ", id, len);
+                for (uint8_t i = 0; i < len; i++) f += String(" %02X", data[i]);
+                f += '\n';
+                oled << f.data();
+                uart << f.data();
+            } else if (res != osErrorTimeout) {
+                oled << f("%s\n", OBD2::errorCode[-res - 1]);
+            }
         }
         oled.clearRemainingRows();
     }
