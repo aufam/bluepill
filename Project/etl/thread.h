@@ -4,33 +4,28 @@
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
 
-#ifndef ETL_THREAD_DEFAULT_BUFFER_WORDS
-#define ETL_THREAD_DEFAULT_BUFFER_WORDS 128
-#endif
-
 namespace Project::etl {
 
     /// FreeRTOS thread
     /// @tparam N buffer length (in words)
     /// @note requires cmsis os v2
-    template <size_t N = 128>
-    struct Thread {
-        typedef void (* Function) (void* arg);
-        osThreadId_t id;
+    template <size_t N = configMINIMAL_STACK_SIZE>
+    class Thread {
         uint32_t buffer[N];
         StaticTask_t controlBlock;
+    public:
+        osThreadId_t id;
         constexpr Thread() : id(nullptr), buffer{}, controlBlock{} {}
 
+        typedef void (* Function) (void* );
+
         /// initiate thread
-        /// @param fn function pointer
-        /// @param arg function argument, default null
-        /// @param prio osPriorityXxx, default @p osPriorityNormal
-        /// @param name string name, default null
-        /// @retval @p osOK: success, @p osError: failed (already initiated)
-        osStatus_t init(Function fn, void* arg = nullptr,
-                        osPriority_t prio = osPriorityNormal,
-                        const char* name = nullptr)
-        {
+        /// @retval @ref osOK: success, @ref osError: failed (already initiated)
+        osStatus_t init(Function fn,                            ///< function pointer
+                        void* arg = nullptr,                    ///< function argument, default = null
+                        osPriority_t prio = osPriorityNormal,   ///< osPriorityXxx, default = @ref osPriorityNormal
+                        const char* name = nullptr              ///< string name, default null
+        ) {
             if (id) return osError;
             osThreadAttr_t attr = {};
             attr.name = name;
@@ -44,7 +39,7 @@ namespace Project::etl {
         }
 
         /// terminate thread
-        /// @retval @p osOK: success, @p osError: failed (already initiated)
+        /// @retval @ref osOK: success, @ref osError: failed (already deinitiated)
         osStatus_t deinit() {
             if (id == nullptr) return osError;
             if (osThreadTerminate(id) == osOK) id = nullptr;

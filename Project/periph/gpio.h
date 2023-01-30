@@ -1,5 +1,5 @@
-#ifndef PROJECT_PERIPH_PIN_H
-#define PROJECT_PERIPH_PIN_H
+#ifndef PERIPH_GPIO_H
+#define PERIPH_GPIO_H
 
 #include "main.h"
 
@@ -17,6 +17,12 @@ namespace Project::Periph {
         , pin(pin)
         , activeMode(activeMode) {}
 
+        /// init GPIO
+        /// @param port GPIOx
+        /// @param pin GPIO_PIN_x
+        /// @param mode GPIO_MODE_xxx
+        /// @param pull @ref GPIO_NOPULL (default), @ref GPIO_PULLUP, @ref GPIO_PULLDOWN
+        /// @param speed @ref GPIO_SPEED_FREQ_LOW (default), @ref GPIO_SPEED_FREQ_MEDIUM, @ref GPIO_SPEED_FREQ_HIGH
         static void init(GPIO_TypeDef *port,
                          uint32_t pin,
                          uint32_t mode,
@@ -29,6 +35,11 @@ namespace Project::Periph {
             HAL_GPIO_Init(port, &gpioInitStruct);
         }
 
+
+        /// init GPIO
+        /// @param mode GPIO_MODE_xxx
+        /// @param pull @ref GPIO_NOPULL (default), @ref GPIO_PULLUP, @ref GPIO_PULLDOWN
+        /// @param speed @ref GPIO_SPEED_FREQ_LOW (default), @ref GPIO_SPEED_FREQ_MEDIUM, @ref GPIO_SPEED_FREQ_HIGH
         void init(uint32_t mode, uint32_t pull = GPIO_NOPULL, uint32_t speed = GPIO_SPEED_FREQ_LOW) const {
             init(port, pin, mode, pull, speed);
         }
@@ -42,16 +53,28 @@ namespace Project::Periph {
             HAL_GPIO_TogglePin(port, pin);
         }
 
+        /// read pin
+        /// @retval active (true) or inactive (false)
         [[nodiscard]] bool read() const {
             bool res = HAL_GPIO_ReadPin(port, pin);
             return !(res ^ activeMode);
         }
 
-        void on() const { write(activeMode); }
+        /// turn on
+        /// @param sleep sleep for a while. default = 0
+        void on(uint32_t sleep = 0) const {
+            write(activeMode);
+            if (sleep > 0) osDelay(sleep);
+        }
 
-        void off() const { write(!activeMode); }
+        /// turn off
+        /// @param sleep sleep for a while. default = 0
+        void off(uint32_t sleep = 0) const {
+            write(!activeMode);
+            if (sleep > 0) osDelay(sleep);
+        }
     };
 
 } // Periph
 
-#endif //PROJECT_PERIPH_PIN_H
+#endif //PERIPH_GPIO_H

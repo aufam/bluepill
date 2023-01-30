@@ -25,10 +25,9 @@ namespace Project::etl {
         /// contains the item and pointer to next and prev item
         struct Node {
             T item;
-            Node* next;
-            Node* prev;
-            Node() = default;
-            explicit Node(const T& item) : item(item), next(nullptr), prev(nullptr) {}
+            Node* next = nullptr;
+            Node* prev = nullptr;
+            explicit Node(const T& item) : item(item) {}
         };
 
         /// iterator class to modify increment, decrement, bool operator, and dereference of Node*
@@ -152,8 +151,8 @@ namespace Project::etl {
     public:
         constexpr LinkedList() : head(nullptr) {}
 #if ETL_LINKED_LIST_USE_MUTEX == 1
-        int init()   const { return mutex.init(); } /// init mutex
-        int deinit() const { clear(); return mutex.deinit(); } /// clear all item and deinit mutex
+        int init()   const { return mutex.init(); } ///< init mutex
+        int deinit() const { clear(); return mutex.deinit(); } ///< clear all item and deinit mutex
 #else
         int init()   const { return osOK; }
         int deinit() const { clear(); return osOK; }
@@ -162,7 +161,7 @@ namespace Project::etl {
         Iterator data()  const { return head; }
         Iterator begin() const { return head; }
         Iterator end()   const { return { nullptr }; }
-        Iterator tail()  const { return head + (len() - 1); } /// last iterator in the linked list
+        Iterator tail()  const { return head + (len() - 1); } ///< last iterator in the linked list
 
         /// @retval number of items
         size_t len() const {
@@ -218,8 +217,8 @@ namespace Project::etl {
             return res;
         }
 
-        int pushBack(const T& item)  const { return push(item); }    /// push an item to the tail
-        int pushFront(const T& item) const { return push(item, 0); } /// push an item to the head
+        int pushBack(const T& item)  const { return push(item); }    ///< push an item to the tail
+        int pushFront(const T& item) const { return push(item, 0); } ///< push an item to the head
 
         /// get an item given the position and delete it from the linked list
         /// @param[out] item the item
@@ -233,17 +232,17 @@ namespace Project::etl {
             return node.erase();
         }
 
-        int pop()             const { T dummy = {}; return pop(dummy, 0); } /// delete first item
-        int popBack()         const { T dummy = {}; return pop(dummy, len() - 1); } /// delete last item
-        int popFront()        const { T dummy = {}; return pop(dummy, 0); } /// delete first item
-        int popBack(T& item)  const { return pop(item, len() - 1); } /// pop the last item
-        int popFront(T& item) const { return pop(item, 0); } /// pop the first item
+        int pop()             const { T dummy = {}; return pop(dummy, 0); } ///< delete first item
+        int popBack()         const { T dummy = {}; return pop(dummy, len() - 1); } ///< delete last item
+        int popFront()        const { T dummy = {}; return pop(dummy, 0); } ///< delete first item
+        int popBack(T& item)  const { return pop(item, len() - 1); } ///< pop last item
+        int popFront(T& item) const { return pop(item, 0); } ///< pop first item
 
         /// push operator
         const LinkedList& operator <<(const T& item) const { push(item); return *this; }
         /// pop operator
         const LinkedList& operator >>(T& item)       const { pop(item); return *this; }
-        explicit operator bool()                     const { return head; }
+        explicit operator bool()                     const { return bool (head); }
 
         /// set all item value
         void fill(const T& item) {
@@ -251,7 +250,7 @@ namespace Project::etl {
             for (T& it : *this) it = item;
         }
 
-        /// perform fn(result, item) for each item in this linked list
+        /// perform fn(result, item) for each item
         /// @tparam R result type
         /// @param result[in,out] result
         /// @param fn function pointer
@@ -268,7 +267,7 @@ namespace Project::etl {
         }
         /// @}
 
-        /// perform fn(item) for each item in this linked list
+        /// perform fn(item) for each item
         /// @param fn function pointer
         /// @{
         void foreach(void (* fn)(T&)) {

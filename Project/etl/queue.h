@@ -11,16 +11,18 @@ namespace Project::etl {
     /// @tparam N maximum number of item
     /// @note requires cmsis os v2
     template <class T, size_t N>
-    struct Queue {
-        typedef T Type;
-        osMessageQueueId_t id;
+    class Queue {
         T buffer[N];
         StaticQueue_t controlBlock;
-        constexpr Queue() : id(nullptr), buffer{}, controlBlock{} {}
+    public:
+        osMessageQueueId_t id;
+        constexpr Queue() : buffer{}, controlBlock{}, id(nullptr) {}
 
-        /// initiate mutex
+        typedef T Type;
+
+        /// initiate queue
         /// @param name string name, default null
-        /// @retval @p osOK: success, @p osError: failed (already initiated)
+        /// @retval @ref osOK: success, @ref osError: failed (already initiated)
         osStatus_t init(const char *name = nullptr) {
             if (id) return osError;
             osMessageQueueAttr_t attr = {};
@@ -33,8 +35,8 @@ namespace Project::etl {
             return osOK;
         }
 
-        /// deinit mutex
-        /// @retval @p osOK: success, @p osError: failed (already initiated)
+        /// deinit queue
+        /// @retval @ref osOK: success, @ref osError: failed (already initiated)
         osStatus_t deinit() {
             if (id == nullptr) return osError;
             if (osMessageQueueDelete(id) == osOK) id = nullptr;
@@ -43,43 +45,88 @@ namespace Project::etl {
 
         /// push an item to the queue
         /// @param[in] item the item
-        /// @param[out] waitMs wait in ms, default 0
+        /// @param[out] timeout in tick, default 0
         /// @param[in] prio priority level, default 0 (lowest)
         /// @retval osStatusXxx
-        osStatus_t push(const T &item, uint32_t waitMs = 0, uint8_t prio = 0) {
-            return osMessageQueuePut(id, &item, prio, waitMs);
+        osStatus_t push(const T &item, uint32_t timeout = 0, uint8_t prio = 0) {
+            return osMessageQueuePut(id, &item, prio, timeout);
         }
 
         /// pop first item from the queue
-        /// @param[out] item the item
-        /// @param[in] waitMs wait in ms, default 0
+        /// @param[out] item first item from queue
+        /// @param[out] timeout in tick, default 0
         /// @param[out] prio pointer to priority level, default null (ignore)
         /// @retval osStatusXxx
-        osStatus_t pop(T &item, uint32_t waitMs = 0, uint8_t *prio = nullptr) {
-            return osMessageQueueGet(id, &item, prio, waitMs);
+        osStatus_t pop(T &item, uint32_t timeout = 0, uint8_t *prio = nullptr) {
+            return osMessageQueueGet(id, &item, prio, timeout);
         }
 
-        /// clear all items inside this queue
-        osStatus_t clear() { return osMessageQueueReset(id); }
+        /// pop first item from the queue
+        /// @param[in] timeout wait in ms, default 0
+        /// @param[out] prio pointer to priority level, default null (ignore)
+        /// @retval first item from queue, assuming no error
+        T pop(uint32_t timeout = 0, uint8_t *prio = nullptr) {
+            T item = {};
+            pop(item, timeout, prio);
+            return item;
+        }
 
-        /// remaining space in this queue
-        auto rem() { return osMessageQueueGetSpace(id); }
+        auto clear()    { return osMessageQueueReset(id); }        ///< clear all items
+        auto rem()      { return osMessageQueueGetSpace(id); }     ///< remaining space
+        auto len()      { return osMessageQueueGetCount(id); }     ///< number of items
+        auto maxLen()   { return osMessageQueueGetCapacity(id); }  ///< maximum number of item
+        auto itemSize() { return osMessageQueueGetMsgSize(id); }   ///< item size in bytes
 
-        /// number of items in this queue
-        auto len() { return osMessageQueueGetCount(id); }
+        T* data()  { return buffer; }
+        T* begin() { return buffer; }
+        T* end()   { return buffer + len(); }
+        T& front() { return buffer[0]; }            ///< get first item, no pop
+        T& back()  { return buffer[len() - 1]; }    ///< get last item, no pop
+        T& operator [](size_t i) { return buffer[i]; }
 
-        /// maximum number of item in this queue
-        auto maxLen() { return osMessageQueueGetCapacity(id); }
+        void fill(const T& item) { for (auto& it : *this) it = item; }
 
-        /// item size in bytes
-        auto itemSize()  { return osMessageQueueGetMsgSize(id); }
+        /// perform fn(result, item) for each item
+        /// @tparam R result type
+        /// @param result[in,out] result
+        /// @param fn function pointer
+        template <class R>
+        void fold(R& result, void (* fn)(R&, T&)) { for (T& it : *this) fn(result, it); }
 
-        /// push operator, no wait
-        Queue &operator << (const T &item) { push(item); return *this; }
+        /// perform fn(item) for each item
+        /// @param fn function pointer
+        /// @{
+        void foreach(void (* fn)(T&)) { for (T& it : *this) fn(it); }
 
-        /// pop operator, no wait
-        Queue &operator >> (T &item) { pop(item); return *this; }
+        /// check any
+        /// @retval if one of the items matches the condition
+        bool any(bool (* check)(T&)) {
+            for (T& it : *this) if (check(it)) return true;
+            return false;
+        }
+        bool any(const T& check) {
+            for (const T& it : *this) if (it == check) return true;
+            return false;
+        }
+        /// @}
 
+
+        /// check all
+        /// @retval if all the items matches the condition
+        bool all(bool (*check)(T&)) {
+            for (T& it : *this) if (!check(it)) return false;
+            return true;
+        }
+        bool all(const T& check) {
+            for (const T& it : *this) if (it != check) return false;
+            return true;
+        }
+        /// @}
+
+        Queue &operator << (const T &item) { push(item); return *this; } ///< push operator, no wait
+        Queue &operator >> (T &item) { pop(item); return *this; }        ///< pop operator, no wait
+
+        /// return true if len > 0
         explicit operator bool () { return len() > 0; }
     };
 

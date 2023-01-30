@@ -1,5 +1,5 @@
-#ifndef PROJECT_PERIPH_EXTI_H
-#define PROJECT_PERIPH_EXTI_H
+#ifndef PERIPH_EXTI_H
+#define PERIPH_EXTI_H
 
 #include "main.h"
 
@@ -15,7 +15,7 @@ namespace Project::Periph {
         };
 
         Callback callbacks[16] = {}; ///< list of callback function of every GPIO pin
-        static const uint32_t debounceDelay = 250; ///< button debounce delay
+        static const uint32_t debounceDelay = 150; ///< button debounce delay
         constexpr Exti() = default;
 
         /// set exti callback of given GPIO pin
@@ -36,4 +36,4 @@ namespace Project::Periph {
 
 } // namespace Project
 
-#endif // PROJECT_PERIPH_EXTI_H
+#endif // PERIPH_EXTI_H

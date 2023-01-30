@@ -1,5 +1,5 @@
-#ifndef PROJECT_PERIPH_USB_H
-#define PROJECT_PERIPH_USB_H
+#ifndef PERIPH_USB_H
+#define PERIPH_USB_H
 
 #include "usbd_cdc_if.h"
 #include "etl/array.h"
@@ -11,7 +11,7 @@ namespace Project::Periph {
     struct USBD {
         /// callback function class
         struct Callback {
-            typedef void (*Function)(void *, size_t);
+            typedef void (*Function)(void *, uint8_t *, size_t);
             Function fn;
             void *arg;
         };
@@ -20,6 +20,11 @@ namespace Project::Periph {
         Callback rxCallback = {};
         Buffer &rxBuffer;
         constexpr explicit USBD(Buffer &rxBuffer) : rxBuffer(rxBuffer) {}
+
+        /// init usb, set rx callback
+        /// @param rxCBFn receive callback function pointer
+        /// @param rxCBArg receive callback function argument
+        void init(Callback::Function rxCBFn, void *rxCBArg = nullptr) { setRxCallback(rxCBFn, rxCBArg); }
 
         /// set rx callback
         /// @param rxCBFn receive callback function pointer
@@ -32,10 +37,8 @@ namespace Project::Periph {
         /// USB transmit non blocking
         /// @param buf data buffer
         /// @param len buffer length
-        /// @retval USBD_StatusTypeDef (see usbd_def.h)
-        int transmit(const void *buf, uint16_t len) {
-            return CDC_Transmit_FS((uint8_t *)buf, len);
-        }
+        /// @retval @ref USBD_StatusTypeDef (see usbd_def.h)
+        int transmit(const void *buf, uint16_t len) { return CDC_Transmit_FS((uint8_t *)buf, len); }
 
         /// string transmit operator
         template <size_t N>
@@ -47,5 +50,4 @@ namespace Project::Periph {
 
 } // namespace Project
 
-
-#endif // PROJECT_PERIPH_USB_H
+#endif // PERIPH_USB_H

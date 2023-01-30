@@ -1,7 +1,7 @@
-#ifndef WTP_MCU1_INPUT_CAPTURE_H
-#define WTP_MCU1_INPUT_CAPTURE_H
+#ifndef PERIPH_INPUT_CAPTURE_H
+#define PERIPH_INPUT_CAPTURE_H
 
-#include "tim.h"
+#include "../../Core/Inc/tim.h"
 
 namespace Project::Periph {
 
@@ -75,8 +75,19 @@ namespace Project::Periph {
             callback.fn = fn;
             callback.arg = arg;
         }
+
+        /// set capture polarity
+        /// @param polarity TIM_INPUTCHANNELPOLARITY_xxx
+        void setPolarity(uint32_t polarity) { __HAL_TIM_SET_CAPTUREPOLARITY(&htim, channel, polarity); }
+
+        /// set counter TIMx->CNT
+        /// @param value desired value
+        void setCounter(uint32_t value) { __HAL_TIM_SET_COUNTER(&htim, value); }
+
+        /// read captured value TIMx->CCRy
+        uint32_t read() { return HAL_TIM_ReadCapturedValue(&htim, channel); }
     };
 
 }
 
-#endif //WTP_MCU1_INPUT_CAPTURE_H
+#endif //PERIPH_INPUT_CAPTURE_H

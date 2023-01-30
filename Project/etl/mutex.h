@@ -8,14 +8,15 @@ namespace Project::etl {
 
     /// FreeRTOS mutex
     /// @note requires cmsis os v2
-    struct Mutex {
-        osMutexId_t id;
-        StaticSemaphore_t controlBlock;
-        constexpr Mutex() : id(nullptr), controlBlock{} {}
+    class Mutex {
+        StaticSemaphore_t controlBlock = {};
+    public:
+        osMutexId_t id = nullptr;
+        constexpr Mutex() = default;
 
         /// initiate mutex
         /// @param name string name, default null
-        /// @retval @p osOK: success, @p osError: failed (already initiated)
+        /// @retval @ref osOK: success, @ref osError: failed (already initiated)
         osStatus_t init(const char* name = nullptr) {
             if (id) return osError;
             osMutexAttr_t attr = {};
@@ -27,7 +28,7 @@ namespace Project::etl {
         }
 
         /// deinit mutex
-        /// @retval @p osOK: success, @p osError: failed (already initiated)
+        /// @retval @ref osOK: success, @ref osError: failed (already deinitiated)
         osStatus_t deinit() {
             if (id == nullptr) return osError;
             if (osMutexDelete(id) == osOK) id = nullptr;
@@ -35,20 +36,25 @@ namespace Project::etl {
         }
 
         /// lock mutex
-        /// @param waitMs wait in millisecond, default = @p osWaitForever
+        /// @param timeout in tick, default = @ref osWaitForever
         /// @retval osStatusXxx
-        osStatus_t lock(uint32_t waitMs = osWaitForever) { return osMutexAcquire(id, waitMs); }
+        osStatus_t lock(uint32_t timeout = osWaitForever) const { return osMutexAcquire(id, timeout); }
 
         /// unlock mutex
         /// @retval osStatusXxx
-        osStatus_t unlock() { return osMutexRelease(id); }
+        osStatus_t unlock() const { return osMutexRelease(id); }
     };
 
     /// lock mutex when entering a scope and unlock when exiting
     struct MutexScope {
-        Mutex& mutex;
-        explicit MutexScope(Mutex& mutex) : mutex(mutex) { mutex.lock(); }
-        ~MutexScope() { mutex.unlock(); }
+        osMutexId_t mutex;
+        explicit MutexScope(Mutex& mutex, uint32_t timeout = osWaitForever) : mutex(mutex.id) {
+            mutex.lock(timeout);
+        }
+        explicit MutexScope(osMutexId_t mutex, uint32_t timeout = osWaitForever) : mutex(mutex) {
+            osMutexAcquire(mutex, timeout);
+        }
+        ~MutexScope() { osMutexRelease(mutex); }
     };
 }
 

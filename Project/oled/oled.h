@@ -11,6 +11,7 @@ namespace Project {
         enum { ID_CMD = 0x00u, ID_DATA = 0x40u };
         typedef const uint8_t *Font;
         typedef const DevType &DeviceType;
+        inline static constexpr uint32_t timeout = 100;
 
         Periph::I2C &i2c;
         Font font; ///< see fonts/allFonts.h

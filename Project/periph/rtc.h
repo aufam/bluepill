@@ -1,8 +1,8 @@
-#ifndef PROJECT_PERIPH_RTC_H
-#define PROJECT_PERIPH_RTC_H
+#ifndef PERIPH_RTC_H
+#define PERIPH_RTC_H
 
 #include "../../Core/Inc/rtc.h"
-#include "etl/timer.h"
+#include "etl/time.h"
 
 namespace Project::Periph {
 
@@ -18,27 +18,21 @@ namespace Project::Periph {
                 "Fri",
                 "Sat"
         };
+
         RTC_TimeTypeDef sTime = {};
         RTC_DateTypeDef sDate = {};
-        etl::Timer timer;
+        etl::Time lastUpdate = {};
         constexpr RealTimeClock() = default;
 
         /// get time and date and store to sTime and sDate
         void update() {
+            auto now = etl::Time::now();
+            if (now - lastUpdate < 1s) return;
+
             HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
             HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+            lastUpdate = now;
         }
-
-        /// update and init timer
-        void init() {
-            update();
-            timer.init(1000,
-                       [](void *arg) { ((RealTimeClock *) arg)->update(); },
-                       this);
-        }
-
-        /// deinit timer
-        void deinit() { timer.deinit(); }
 
         int setDate(uint8_t week_day, uint8_t date, uint8_t month, uint8_t year) {
             sDate.WeekDay = week_day;
@@ -48,21 +42,22 @@ namespace Project::Periph {
             return HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
         }
 
-        int setTime(uint8_t secs, uint8_t mins, uint8_t hrs) {
-            sTime.Seconds = secs;
-            sTime.Minutes = mins;
+        int setTime(uint8_t hrs, uint8_t mins, uint8_t secs) {
             sTime.Hours = hrs;
+            sTime.Minutes = mins;
+            sTime.Seconds = secs;
             return HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
         }
 
-        auto &getSeconds()  { return sTime.Seconds; }
-        auto &getMinutes()  { return sTime.Minutes; }
-        auto &getHours()    { return sTime.Hours; }
-        auto &getDay()  { return days[sDate.WeekDay]; }
-        auto &getWeekDay()  { return sDate.WeekDay; }
-        auto &getDate()     { return sDate.Date; }
-        auto &getMonth()    { return sDate.Month; }
-        auto &getYear()     { return sDate.Year; }
+        auto getSeconds()  { update(); return sTime.Seconds; }
+        auto getMinutes()  { update(); return sTime.Minutes; }
+        auto getHours()    { update(); return sTime.Hours; }
+        auto getDay()  { update(); return days[sDate.WeekDay]; }
+        auto getWeekDay()  { update(); return sDate.WeekDay; }
+        auto getDate()     { update(); return sDate.Date; }
+        auto getMonth()    { update(); return sDate.Month; }
+        auto getYear()     { update(); return sDate.Year; }
+
 
     };
 
@@ -71,4 +66,4 @@ namespace Project::Periph {
 } // namespace Project
 
 
-#endif // PROJECT_PERIPH_RTC_H
+#endif // PERIPH_RTC_H

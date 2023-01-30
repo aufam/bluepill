@@ -11,13 +11,14 @@
 
 namespace Project::etl {
 
-    /// simple string class.
-    /// @tparam N string size. default = @p ETL_STRING_DEFAULT_SIZE
+    /// simple string class with c-style formatter
+    /// @tparam N string size. default = @ref ETL_STRING_DEFAULT_SIZE
     template <size_t N = ETL_STRING_DEFAULT_SIZE>
-    struct String {
-        char str[N];
-        constexpr String() : str{} {}
-        explicit String(const char* fmt, ...) : str{} {
+    class String {
+        char str[N] = {};
+    public:
+        constexpr String() = default;
+        String(const char* fmt, ...) {
             va_list vl;
             va_start(vl, fmt);
             vsnprintf(str, N, fmt, vl);
@@ -26,36 +27,47 @@ namespace Project::etl {
         }
 
         static constexpr size_t size() { return N; }
-        [[nodiscard]] size_t len() const { return strlen(str); }
-        [[nodiscard]] size_t rem() const { return size() - len(); } ///< remaining space
+        [[nodiscard]] size_t len() const { size_t l = strlen(str); return l < N ? l : N - 1; }
+        [[nodiscard]] size_t rem() const { return size() - len() - 1; } ///< remaining space
         void clear() { memset(str, 0, N); }
 
         char* data()    { return str; }
         char* begin()   { return str; }
         char* end()     { return str + len(); }
+        char& front()   { return str[0]; }
+        char& back()    { return str[len() - 1]; }
 
         [[nodiscard]] const char* data()    const { return str; }
         [[nodiscard]] const char* begin()   const { return str; }
         [[nodiscard]] const char* end()     const { return str + len(); }
+        [[nodiscard]] const char& front()   const { return str[0]; }
+        [[nodiscard]] const char& back()    const { return str[len() - 1]; }
 
-        char& operator [](size_t i) { return str[i]; }
-        const char& operator [](size_t i) const { return str[i]; }
+        char& operator [] (size_t i) { return str[i]; }
+        const char& operator [] (size_t i) const { return str[i]; }
+
+        explicit operator bool () { return str[0] != '\0'; }
 
         template <size_t M>
-        String &operator=(const String<M>& other)   { strncpy(str, other.str, size() - 1); return *this; }
-        String &operator=(const char* other)        { strncpy(str, other, size() - 1); return *this; }
-        String &operator=(char ch)                  { str[0] = ch; str[1] = '\0'; return *this; }
+        String &operator = (const String<M>& other)   { strncpy(str, other.data(), size() - 1); return *this; }
+        String &operator = (const char* other)        { strncpy(str, other, size() - 1); return *this; }
+        String &operator = (char ch)                  { str[0] = ch; str[1] = '\0'; return *this; }
 
         template <size_t M>
-        String &operator+=(const String<M>& other)  { strncpy(end(), other.str, rem() - 1); return *this; }
-        String &operator+=(const char* other)       { strncpy(end(), other, rem() - 1); return *this; }
-        String &operator+=(char ch) {
+        String &operator += (const String<M>& other)  { strncpy(end(), other.data(), rem()); return *this; }
+        String &operator += (const char* other)       { strncpy(end(), other, rem()); return *this; }
+        String &operator += (char ch) {
+            if (rem() == 0) return *this;
             size_t i = len();
-            if (i + 1 == N) return *this;
             str[i++] = ch;
             str[i] = '\0';
             return *this;
         }
+
+        template <size_t M>
+        String &operator << (const String<M>& other)  { *this += other; return *this; }
+        String &operator << (const char* other)       { *this += other; return *this; }
+        String &operator << (char ch)                 { *this += ch; return *this; }
 
         /// formatted string operation
         /// @param fmt formatted string
@@ -69,8 +81,8 @@ namespace Project::etl {
             return str;
         }
 
-        template <size_t M> int compare(const String<M>& other, size_t n) const { return strncmp(str, other.str, n); }
-        template <size_t M> int compare(const String<M>& other)           const { return strcmp(str, other.str); }
+        template <size_t M> int compare(const String<M>& other, size_t n) const { return strncmp(str, other.data(), n); }
+        template <size_t M> int compare(const String<M>& other)           const { return strcmp(str, other.data()); }
         template <size_t M> bool operator ==(const String<M>& other)      const { return compare(other) == 0; }
         template <size_t M> bool operator >(const String<M>& other)       const { return compare(other) > 0; }
         template <size_t M> bool operator <(const String<M>& other)       const { return compare(other) < 0; }
@@ -82,7 +94,7 @@ namespace Project::etl {
 
         template <size_t M>
         bool isContaining(const String<M>& other, size_t n) const {
-            for (const char& c : *this) if (strncmp(other.str, &c, n) == 0) return true;
+            for (const char& c : *this) if (strncmp(other.data(), &c, n) == 0) return true;
             return false;
         }
         bool isContaining(const char* other, size_t n) const {

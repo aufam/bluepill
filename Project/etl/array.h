@@ -6,11 +6,9 @@
 namespace Project::etl {
 
     template <class T, size_t N>
-    class Array {
-        T buffer[N];
-
-    public:
+    struct Array {
         typedef T Type;
+        T buffer[N];
 
         static constexpr size_t size() { return N; }
         [[nodiscard]] size_t len() const { return N; }
@@ -34,7 +32,12 @@ namespace Project::etl {
         void fill(const T& item, size_t n = N) {
             for (size_t i = 0; i < n; i++) buffer[i] = item; 
         }
-        
+
+        /// perform fn(result, item) for each item
+        /// @tparam R result type
+        /// @param result[in,out] result
+        /// @param fn function pointer
+        /// @{
         template <class R>
         void fold(R& result, void (* fn)(R&, T&), size_t n = N) {
             for (size_t i = 0; i < n; i++) fn(result, buffer[i]);
@@ -43,16 +46,23 @@ namespace Project::etl {
         void fold(R& result, void (* fn)(R&, const T&), size_t n = N) const {
             for (size_t i = 0; i < n; i++) fn(result, buffer[i]);
         }
-        
+        /// @}
+
+        /// perform fn(item) for each item
+        /// @param fn function pointer
+        /// @{
         void foreach(void (* fn)(T&), size_t n = N) { 
             for (size_t i = 0; i < n; i++) fn(buffer[i]); 
         }
         void foreach(void (* fn)(const T&), size_t n = N) const { 
             for (size_t i = 0; i < n; i++) fn(buffer[i]); 
         }
-        
+        /// @}
+
+        /// check any
+        /// @retval if one of the items matches the condition
         bool any(bool (* check)(T&)) { 
-            for (const T& item : buffer) if (check(item)) return true;
+            for (T& item : buffer) if (check(item)) return true;
             return false; 
         }
         bool any(bool (* check)(const T&)) const { 
@@ -63,9 +73,12 @@ namespace Project::etl {
             for (const T& item : buffer) if (item == check) return true;
             return false; 
         }
-        
+        /// @}
+
+        /// check all
+        /// @retval if all the items matches the condition
         bool all(bool (*check)(T&)) { 
-            for (const T& item : buffer) if (!check(item)) return false;
+            for (T& item : buffer) if (!check(item)) return false;
             return true; 
         }
         bool all(bool (*check)(const T&)) const { 
@@ -76,6 +89,7 @@ namespace Project::etl {
             for (const T& item : buffer) if (item != check) return false;
             return true; 
         }
+        /// @}
     };
 
 }

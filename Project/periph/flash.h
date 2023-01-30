@@ -1,5 +1,5 @@
-#ifndef PROJECT_EEPROM_H
-#define PROJECT_EEPROM_H
+#ifndef PERIPH_FLASH_H
+#define PERIPH_FLASH_H
 
 #include "stm32f1xx_hal.h"
 
@@ -81,4 +81,4 @@ namespace Project::Periph {
 
 }
 
-#endif //PROJECT_EEPROM_H
+#endif //PERIPH_FLASH_H
