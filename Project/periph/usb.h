@@ -11,7 +11,7 @@ namespace Project::Periph {
     struct USBD {
         /// callback function class
         struct Callback {
-            typedef void (*Function)(void *, uint8_t *, size_t);
+            typedef void (*Function)(void *, const uint8_t *, size_t);
             Function fn;
             void *arg;
         };

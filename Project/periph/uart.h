@@ -12,7 +12,7 @@ namespace Project::Periph {
     struct UART {
         /// callback function class
         struct RxCallback {
-            typedef void (*Function)(void *, uint8_t *, size_t);
+            typedef void (*Function)(void *, const uint8_t *, size_t);
             Function fn;
             void *arg;
         };
