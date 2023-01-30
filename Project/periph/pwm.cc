@@ -1,4 +1,4 @@
-#include "pwm.h"
+#include "periph/pwm.h"
 
 void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
     using namespace Project::Periph;

@@ -1,7 +1,7 @@
 #ifndef PERIPH_PWM_H
 #define PERIPH_PWM_H
 
-#include "tim.h"
+#include "../../Core/Inc/tim.h"
 
 namespace Project::Periph {
 
