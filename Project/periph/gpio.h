@@ -35,13 +35,13 @@ namespace Project::Periph {
             HAL_GPIO_Init(port, &gpioInitStruct);
         }
 
-
-        /// init GPIO
+        /// init GPIO and turn off
         /// @param mode GPIO_MODE_xxx
         /// @param pull @ref GPIO_NOPULL (default), @ref GPIO_PULLUP, @ref GPIO_PULLDOWN
         /// @param speed @ref GPIO_SPEED_FREQ_LOW (default), @ref GPIO_SPEED_FREQ_MEDIUM, @ref GPIO_SPEED_FREQ_HIGH
         void init(uint32_t mode, uint32_t pull = GPIO_NOPULL, uint32_t speed = GPIO_SPEED_FREQ_LOW) const {
             init(port, pin, mode, pull, speed);
+            off();
         }
 
         /// write pin high (true) or low (false)
@@ -49,30 +49,29 @@ namespace Project::Periph {
             HAL_GPIO_WritePin(port, pin, highLow ? GPIO_PIN_SET : GPIO_PIN_RESET);
         }
 
-        void toggle() const {
-            HAL_GPIO_TogglePin(port, pin);
-        }
+        void toggle() const { HAL_GPIO_TogglePin(port, pin); }
 
         /// read pin
-        /// @retval active (true) or inactive (false)
-        [[nodiscard]] bool read() const {
-            bool res = HAL_GPIO_ReadPin(port, pin);
-            return !(res ^ activeMode);
-        }
+        /// @retval high (true) or low (false)
+        [[nodiscard]] bool read() const { return HAL_GPIO_ReadPin(port, pin); }
 
         /// turn on
-        /// @param sleep sleep for a while. default = 0
-        void on(uint32_t sleep = 0) const {
+        /// @param ticks sleep for a while. default = 0
+        void on(uint32_t ticks = 0) const {
             write(activeMode);
-            if (sleep > 0) osDelay(sleep);
+            osDelay(ticks);
         }
 
         /// turn off
-        /// @param sleep sleep for a while. default = 0
-        void off(uint32_t sleep = 0) const {
+        /// @param ticks sleep for a while. default = 0
+        void off(uint32_t ticks = 0) const {
             write(!activeMode);
-            if (sleep > 0) osDelay(sleep);
+            osDelay(ticks);
         }
+
+        [[nodiscard]] bool isOn() const { return !(read() ^ activeMode); }
+        [[nodiscard]] bool isOff() const { return (read() ^ activeMode); }
+
     };
 
 } // Periph
