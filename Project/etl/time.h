@@ -22,6 +22,8 @@ namespace Project::etl {
         [[nodiscard]] constexpr float s()   const { return (float) tick / tickFreq; }
         [[nodiscard]] constexpr float min() const { return (float) tick / tickFreq / 60; }
 
+        constexpr explicit operator float() const { return (float) tick; }
+        
         constexpr Time operator - (Time other) const { return Time { tick - other.tick }; }
         constexpr Time operator + (Time other) const { return Time { tick + other.tick }; }
 
