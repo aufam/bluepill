@@ -15,7 +15,7 @@ namespace Project::Periph {
         };
 
         Callback callbacks[16] = {}; ///< list of callback function of every GPIO pin
-        static const uint32_t debounceDelay = 150; ///< button debounce delay
+        static const uint32_t debounceDelay = 250; ///< button debounce delay
         constexpr Exti() = default;
 
         /// set exti callback of given GPIO pin
