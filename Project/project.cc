@@ -9,28 +9,88 @@ void *operator new(size_t size) { return pvPortMalloc(size); }
 /// override operator delete with free from @p heap_4.c
 void operator delete(void *ptr) { vPortFree(ptr); }
 
-enum { EVENT_CLEAR, EVENT_BT_UP, EVENT_BT_DOWN, EVENT_BT_RIGHT, EVENT_BT_LEFT, EVENT_BT_ROT, EVENT_ROT_UP, EVENT_ROT_DOWN };
+enum { EVENT_NONE, EVENT_BT_ROT, EVENT_ROT_CW, EVENT_ROT_CCW };
 auto event = Queue<int, 1> {};
 auto oled = Oled { i2c2 };
 auto &encoder = encoder1;
 auto f = String {};
+auto &pwm = pwm3channel1;
+bool pwmIsOn = false;
+const int inc = 100;
+
+struct Option {
+    char* (* text)();
+    void (* add)(int);
+    void print(bool invertColor) const { oled.print(text(), invertColor); }
+};
+
+const Array<Option, 4> options = {
+        Option {
+            []() { return f("PWM is %s", pwmIsOn ? "on" : "off"); },
+            [](int val) { }
+            },
+        Option {
+            []() { return f("PSC = %u", pwm.getPrescaler()); },
+            [](int val) { pwm.setPrescaler(pwm.getPrescaler() + val); }
+            },
+        Option {
+            []() { return f("ARR = %u", pwm.getPeriod()); },
+            [](int val) { pwm.setPeriod(pwm.getPeriod() + val); }
+            },
+        Option {
+            []() { return f("CCR = %u", pwm.getPulse()); },
+            [](int val) { pwm.setPulse(pwm.getPulse() + val); }
+            }
+};
 
 void mainThread(void *) {
     event.init();
     oled.init();
+    pwm.init(SystemCoreClock / 10'000 - 1, 10'000 - 1, 5'000 - 1);
+    encoder.init();
 
-    exti.setCallback(button_up_Pin, [](auto) { event << EVENT_BT_UP; });
-    exti.setCallback(button_down_Pin, [](auto) { event << EVENT_BT_DOWN; });
-    exti.setCallback(button_right_Pin, [](auto) { event << EVENT_BT_RIGHT; });
-    exti.setCallback(button_left_Pin, [](auto) { event << EVENT_BT_LEFT; });
     exti.setCallback(button_rot_Pin, [](auto) { event << EVENT_BT_ROT; });
-    encoder.init([](auto) { event << EVENT_ROT_UP; }, nullptr,
-                 [](auto) { event << EVENT_ROT_DOWN; });
+    encoder.setIncrementCB([](auto) { event << EVENT_ROT_CW; });
+    encoder.setDecrementCB([](auto) { event << EVENT_ROT_CCW; });
 
-    oled << "Hello World!\n";
+    size_t optionIndex = 0;
+    bool editMode = false;
     for (;;) {
+        oled.setCursor(0, 0);
+        for (size_t i = 0; i < options.len(); i++) {
+            options[i].print(optionIndex == i);
+            oled << '\n';
+        }
+
+        auto freq = (float) SystemCoreClock / (float) (pwm.getPeriod() + 1) / (float) (pwm.getPrescaler() + 1);
+        oled << f("Frequency = %.2fHz\n", freq);
+        auto duty = (float) (pwm.getPulse() + 1) / (float) (pwm.getPeriod() + 1);
+        oled << f("Duty cycle = %.2f%%\n", duty * 100);
+
         int evt = event.pop(osWaitForever);
-        oled << f("%d", evt);
+        switch (evt) {
+            case EVENT_BT_ROT:
+                if (optionIndex == 0) {
+                    pwmIsOn = !pwmIsOn;
+                    pwmIsOn ? pwm.start() : pwm.stop();
+                    break;
+                }
+                editMode = !editMode;
+                break;
+
+            case EVENT_ROT_CW:
+            case EVENT_ROT_CCW:
+                if (!editMode) {
+                    optionIndex += evt == EVENT_ROT_CW ? 1 : -1;
+                    optionIndex = truncate(optionIndex, 0u, options.len() - 1);
+                    break;
+                }
+                options[optionIndex].add(evt == EVENT_ROT_CW ? inc : -inc);
+
+            case EVENT_NONE:
+            default:
+                break;
+        }
     }
 }
 
