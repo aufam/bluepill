@@ -39,6 +39,12 @@ namespace Project::Periph {
             setCallback(halfCBFn, halfCBArg, fullCBFn, fullCBArg);
         }
 
+        /// stop pwm and reset callback
+        void deinit() {
+            stop();
+            setCallback();
+        }
+
         /// start pwm interrupt
         void start() { HAL_TIM_PWM_Start_IT(&htim, channel); }
 
