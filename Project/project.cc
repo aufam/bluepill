@@ -1,4 +1,5 @@
 #include "project.h"
+#include "etl/python_keywords.h"
 
 using namespace Project;
 using namespace Project::Periph;
@@ -57,15 +58,18 @@ void mainThread(void *) {
     bool editMode = false;
     for (;;) {
         oled.setCursor(0, 0);
-        for (size_t i = 0; i < options.len(); i++) {
-            options[i].print(optionIndex == i);
+        for (auto [i, option] in enumerate(options)) {
+            option.print(optionIndex == i);
             oled << '\n';
         }
 
         auto freq = (float) SystemCoreClock / (float) (pwm.getPeriod() + 1) / (float) (pwm.getPrescaler() + 1);
-        oled << f("Frequency = %.2fHz\n", freq);
+        auto val = division(static_cast<int>(freq * 100), 100);
+        oled << f("Frequency = %d.%02d Hz\n", val.x, val.y);
+
         auto duty = (float) (pwm.getPulse() + 1) / (float) (pwm.getPeriod() + 1);
-        oled << f("Duty cycle = %.2f%%\n", duty * 100);
+        val = division(static_cast<int>(duty * 100), 100);
+        oled << f("Duty cycle = %d.%02d %%\n", val.x, val.y);
 
         int evt = event.pop(osWaitForever);
         switch (evt) {
@@ -75,17 +79,17 @@ void mainThread(void *) {
                     pwmIsOn ? pwm.start() : pwm.stop();
                     break;
                 }
-                editMode = !editMode;
+                editMode = not editMode;
                 break;
 
             case EVENT_ROT_CW:
             case EVENT_ROT_CCW:
-                if (!editMode) {
-                    optionIndex += evt == EVENT_ROT_CW ? 1 : -1;
-                    optionIndex = truncate(optionIndex, 0u, options.len() - 1);
+                if (not editMode) {
+                    optionIndex += evt is EVENT_ROT_CW ? 1 : -1;
+                    optionIndex = clamp(optionIndex, 0u, options.len() - 1);
                     break;
                 }
-                options[optionIndex].add(evt == EVENT_ROT_CW ? inc : -inc);
+                options[optionIndex].add(evt is EVENT_ROT_CW ? inc : -inc);
 
             case EVENT_NONE:
             default:

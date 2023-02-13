@@ -6,7 +6,7 @@
 namespace Project::etl {
 
     struct Time {
-        static constexpr uint32_t tickFreq = configTICK_RATE_HZ;
+        static constexpr auto tickFreq = configTICK_RATE_HZ;
         uint32_t tick;
         constexpr explicit Time(uint32_t tick) : tick(tick) {}
         Time() : tick(osKernelGetTickCount()) {}

@@ -84,45 +84,6 @@ namespace Project::etl {
         T& back()  { return buffer[len() - 1]; }    ///< get last item, no pop
         T& operator [](size_t i) { return buffer[i]; }
 
-        void fill(const T& item) { for (auto& it : *this) it = item; }
-
-        /// perform fn(result, item) for each item
-        /// @tparam R result type
-        /// @param result[in,out] result
-        /// @param fn function pointer
-        template <class R>
-        void fold(R& result, void (* fn)(R&, T&)) { for (T& it : *this) fn(result, it); }
-
-        /// perform fn(item) for each item
-        /// @param fn function pointer
-        /// @{
-        void foreach(void (* fn)(T&)) { for (T& it : *this) fn(it); }
-
-        /// check any
-        /// @retval if one of the items matches the condition
-        bool any(bool (* check)(T&)) {
-            for (T& it : *this) if (check(it)) return true;
-            return false;
-        }
-        bool any(const T& check) {
-            for (const T& it : *this) if (it == check) return true;
-            return false;
-        }
-        /// @}
-
-
-        /// check all
-        /// @retval if all the items matches the condition
-        bool all(bool (*check)(T&)) {
-            for (T& it : *this) if (!check(it)) return false;
-            return true;
-        }
-        bool all(const T& check) {
-            for (const T& it : *this) if (it != check) return false;
-            return true;
-        }
-        /// @}
-
         Queue &operator << (const T &item) { push(item); return *this; } ///< push operator, no wait
         Queue &operator >> (T &item) { pop(item); return *this; }        ///< pop operator, no wait
 
