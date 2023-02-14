@@ -2,6 +2,7 @@
 #define PERIPH_CAN_H
 
 #include "../../Core/Inc/can.h"
+#include "etl/function.h"
 
 /// select fifo0 or fifo1 (default)
 #define PERIPH_CAN_USE_FIFO1
@@ -30,11 +31,7 @@ namespace Project::Periph {
         };
 
         /// callback function struct
-        struct Callback {
-            typedef void (* Function)(void*, Message&);
-            Function fn;
-            void *arg;
-        };
+        using Callback = etl::Function<void(Message &)>;
 
         CAN_HandleTypeDef &hcan;
         CAN_FilterTypeDef canFilter = {};
@@ -47,7 +44,7 @@ namespace Project::Periph {
         /// @param useExtId true: use extended ID, false: use standard ID (default)
         /// @param fn rx callback function pointer, default = null
         /// @param arg rx callback function argument, default = null
-        void init(bool useExtId = false, Callback::Function fn = nullptr, void* arg = nullptr) {
+        void init(bool useExtId = false, Callback::Fn fn = nullptr, void* arg = nullptr) {
             txHeader.RTR = CAN_RTR_DATA;
             txHeader.TransmitGlobalTime = DISABLE;
             setIdType(useExtId);
@@ -62,9 +59,8 @@ namespace Project::Periph {
             setRxCallback(nullptr);
         }
 
-        void setRxCallback(Callback::Function fn, void* arg = nullptr) {
-            rxCallback.fn = fn;
-            rxCallback.arg = arg;
+        void setRxCallback(Callback::Fn fn, void* arg = nullptr) {
+            rxCallback = { fn, arg };
         }
 
         /// set filter by hardware
@@ -100,7 +96,9 @@ namespace Project::Periph {
 
         /// set tx ID type, standard or extended
         /// @param useExtId true: use extended ID, false: use standard ID
-        void setIdType(bool useExtId) { txHeader.IDE = useExtId ? CAN_ID_EXT : CAN_ID_STD; }
+        void setIdType(bool useExtId) {
+            txHeader.IDE = useExtId ? CAN_ID_EXT : CAN_ID_STD;
+        }
 
         /// set tx ID
         void setId(uint32_t txId) {
@@ -129,9 +127,7 @@ namespace Project::Periph {
         /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
         int transmit(uint32_t txId, uint8_t *buf, uint16_t len = 8) {
             setId(txId);
-            if (len > 8) len = 8;
-            txHeader.DLC = len;
-            return HAL_CAN_AddTxMessage(&hcan, &txHeader, buf, &txMailbox);
+            return transmit(buf, len);
         }
     };
 

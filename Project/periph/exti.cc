@@ -1,8 +1,12 @@
 #include "periph/exti.h"
 #include "cmsis_os2.h" // osKernelGetTickCount
+#include "etl/python_keywords.h"
+
+using namespace Project::Periph;
+using Project::etl::enumerate;
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    using namespace Project::Periph;
+
     static uint16_t pinNow;
     static uint32_t timeNow;
 
@@ -10,12 +14,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     auto timePrev = timeNow;
     timeNow = osKernelGetTickCount();
     pinNow = GPIO_Pin;
-    if (timeNow - timePrev < Exti::debounceDelay && pinNow == pinPrev) return;
+    if (timeNow - timePrev < Exti::debounceDelay and pinNow == pinPrev) return;
 
-    size_t index = 0;
-    for (uint32_t b = 1; index < 16; index++)
-        if ((b << index) & GPIO_Pin) {
-            auto &cb = exti.callbacks[index];
-            if (cb.fn) cb.fn(cb.arg);
-        }
+    uint32_t b = 1;
+    for (auto [i, callback] in enumerate(exti.callbacks))
+        if ((b << i) & GPIO_Pin) callback();
+}
+
+void Exti::setCallback(uint16_t pin, Callback::Fn fn, void *arg) {
+    uint32_t b = 1;
+    for (auto [i, callback] in enumerate(exti.callbacks))
+        if ((b << i) & pin) callback = { fn, arg };
 }
