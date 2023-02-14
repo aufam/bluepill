@@ -12,11 +12,11 @@ namespace Project::etl {
     /// @note requires cmsis os v2
     template <class T, size_t N>
     class Queue {
-        T buffer[N];
-        StaticQueue_t controlBlock;
+        T buffer[N] = {};
+        StaticQueue_t controlBlock = {};
     public:
-        osMessageQueueId_t id;
-        constexpr Queue() : buffer{}, controlBlock{}, id(nullptr) {}
+        osMessageQueueId_t id = nullptr;
+        constexpr Queue() = default;
 
         typedef T Type;
 
@@ -62,7 +62,7 @@ namespace Project::etl {
         }
 
         /// pop first item from the queue
-        /// @param[in] timeout wait in ms, default 0
+        /// @param[in] timeout wait in tick, default 0
         /// @param[out] prio pointer to priority level, default null (ignore)
         /// @retval first item from queue, assuming no error
         T pop(uint32_t timeout = 0, uint8_t *prio = nullptr) {

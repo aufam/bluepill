@@ -4,17 +4,14 @@
 #include "usbd_cdc_if.h"
 #include "etl/array.h"
 #include "etl/string.h"
+#include "etl//function.h"
 
 namespace Project::Periph {
 
     /// USB peripheral class
     struct USBD {
         /// callback function class
-        struct Callback {
-            typedef void (*Function)(void *, const uint8_t *, size_t);
-            Function fn;
-            void *arg;
-        };
+        using Callback = etl::Function<void(const uint8_t*, size_t)>;
         using Buffer = etl::Array<uint8_t, APP_RX_DATA_SIZE>; ///< USB rx buffer type definition
 
         Callback rxCallback = {};
@@ -24,14 +21,13 @@ namespace Project::Periph {
         /// init usb, set rx callback
         /// @param rxCBFn receive callback function pointer
         /// @param rxCBArg receive callback function argument
-        void init(Callback::Function rxCBFn, void *rxCBArg = nullptr) { setRxCallback(rxCBFn, rxCBArg); }
+        void init(Callback::Fn rxCBFn, void *rxCBArg = nullptr) { setRxCallback(rxCBFn, rxCBArg); }
 
         /// set rx callback
         /// @param rxCBFn receive callback function pointer
         /// @param rxCBArg receive callback function argument
-        void setRxCallback(Callback::Function rxCBFn, void *rxCBArg = nullptr) {
-            rxCallback.fn  = rxCBFn;
-            rxCallback.arg = rxCBArg;
+        void setRxCallback(Callback::Fn rxCBFn, void *rxCBArg = nullptr) {
+            rxCallback = { rxCBFn, rxCBArg };
         }
 
         /// USB transmit non blocking

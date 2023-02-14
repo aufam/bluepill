@@ -2,6 +2,7 @@
 #define PERIPH_ADC_H
 
 #include "../../Core/Inc/adc.h"
+#include "etl/function.h"
 
 namespace Project::Periph {
 
@@ -9,11 +10,7 @@ namespace Project::Periph {
     /// @note requirements: DMA circular, temperature sensor channel, vref channel
     struct ADC {
         /// callback function class
-        struct CompleteCallback {
-            typedef void (*Function)(void *);
-            Function fn;
-            void *arg;
-        };
+        using CompleteCallback = etl::Function<void()>;
 
         enum {
             INDEX_TEMP   = 0, ///< index of internal temperature sensor
@@ -30,7 +27,7 @@ namespace Project::Periph {
         /// start ADC DMA circular, and set complete callback
         /// @param cpltCBFn complete callback function pointer. default = null
         /// @param cpltCBArg complete callback function argument. default = null
-        void init(CompleteCallback::Function cpltCBFn = nullptr, void* cpltCBArg = nullptr) {
+        void init(CompleteCallback::Fn cpltCBFn = nullptr, void* cpltCBArg = nullptr) {
             HAL_ADCEx_Calibration_Start(&hadc);
             HAL_ADC_Start_DMA(&hadc, buf, N_CHANNEL);
             setCompleteCallback(cpltCBFn, cpltCBArg);
@@ -46,9 +43,8 @@ namespace Project::Periph {
         /// set complete callback
         /// @param cpltCBFn complete callback function pointer
         /// @param cpltCBArg complete callback function argument. default = null
-        void setCompleteCallback(CompleteCallback::Function cpltCBFn, void* cpltCBArg = nullptr) {
-            completeCallback.fn = cpltCBFn;
-            completeCallback.arg = cpltCBArg;
+        void setCompleteCallback(CompleteCallback::Fn cpltCBFn, void* cpltCBArg = nullptr) {
+            completeCallback = { cpltCBFn, cpltCBArg };
         }
 
         /// get ADC raw value given the index
