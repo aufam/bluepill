@@ -16,8 +16,29 @@ auto oled = Oled { i2c2 };
 auto &encoder = encoder1;
 auto f = String {};
 auto &pwm = pwm3channel1;
+
 bool pwmIsOn = false;
 const int inc = 100;
+int frequency = 200;
+int dutyCycle = 50;
+
+void setPWM() {
+    pwm.setPrescaler(SystemCoreClock / 10'000 / frequency - 1);
+    pwm.setPeriod(10'000 - 1);
+    pwm.setPulse(10'000 * dutyCycle / 100 - 1);
+}
+
+void incFrequency(int val) {
+    frequency += 5 * val;
+    frequency = clamp(frequency, 1, 200);
+    setPWM();
+}
+
+void incDutyCycle(int val) {
+    dutyCycle += 5 * val;
+    dutyCycle = clamp(dutyCycle, 5, 95);
+    setPWM();
+}
 
 struct Option {
     char* (* text)();
@@ -25,22 +46,18 @@ struct Option {
     void print(bool invertColor) const { oled.print(text(), invertColor); }
 };
 
-const Array<Option, 4> options = {
+const Array<Option, 3> options = {
         Option {
             []() { return f("PWM is %s", pwmIsOn ? "on" : "off"); },
             [](int val) { }
             },
         Option {
-            []() { return f("PSC = %u", pwm.getPrescaler()); },
-            [](int val) { pwm.setPrescaler(pwm.getPrescaler() + val); }
+            []{ return  f("Freq = %d", frequency); },
+            incFrequency
             },
         Option {
-            []() { return f("ARR = %u", pwm.getPeriod()); },
-            [](int val) { pwm.setPeriod(pwm.getPeriod() + val); }
-            },
-        Option {
-            []() { return f("CCR = %u", pwm.getPulse()); },
-            [](int val) { pwm.setPulse(pwm.getPulse() + val); }
+            []{ return  f("Duty = %d", dutyCycle); },
+            incDutyCycle
             }
 };
 
@@ -48,6 +65,7 @@ void mainThread(void *) {
     event.init();
     oled.init();
     pwm.init(SystemCoreClock / 10'000 - 1, 10'000 - 1, 5'000 - 1);
+    setPWM();
     encoder.init();
 
     exti.setCallback(button_rot_Pin, [](auto) { event << EVENT_BT_ROT; });
@@ -75,7 +93,7 @@ void mainThread(void *) {
         switch (evt) {
             case EVENT_BT_ROT:
                 if (optionIndex == 0) {
-                    pwmIsOn = !pwmIsOn;
+                    pwmIsOn = not pwmIsOn;
                     pwmIsOn ? pwm.start() : pwm.stop();
                     break;
                 }
@@ -89,7 +107,7 @@ void mainThread(void *) {
                     optionIndex = clamp(optionIndex, 0u, options.len() - 1);
                     break;
                 }
-                options[optionIndex].add(evt is EVENT_ROT_CW ? inc : -inc);
+                options[optionIndex].add(evt is EVENT_ROT_CW ? 1 : -1);
 
             case EVENT_NONE:
             default:
