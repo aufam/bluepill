@@ -46,10 +46,12 @@ namespace Project::etl {
     inline static constexpr Time timeImmediate(0);
 
     inline void sleep(Time time) { osDelay(time.tick); }
-}
 
-constexpr auto operator ""ms   (unsigned long long val) { return Project::etl::Time::ms2time(val); }
-constexpr auto operator ""s    (unsigned long long val) { return Project::etl::Time::s2time(val); }
-constexpr auto operator ""min  (unsigned long long val) { return Project::etl::Time::min2time(val); }
+    namespace literals {
+        constexpr auto operator ""ms   (unsigned long long val) { return Time::ms2time(val); }
+        constexpr auto operator ""s    (unsigned long long val) { return Time::s2time(val); }
+        constexpr auto operator ""min  (unsigned long long val) { return Time::min2time(val); }
+    }
+}
 
 #endif //ETL_TIME_H

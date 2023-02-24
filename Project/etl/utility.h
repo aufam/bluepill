@@ -37,9 +37,28 @@ namespace Project::etl {
     end(T (&arr)[N]) { return arr + N; }
 
     /// pair of values with possible different types
-    template <class X, class Y = X> struct Pair { X x; Y y; } ;
+    template <class X, class Y = X>
+    struct Pair {
+        X x; Y y;
+        constexpr bool operator==(Pair& other) const { return x == other.x && y == other.y; }
+        constexpr bool operator!=(Pair& other) const { return !operator==(other); }
+    };
+
+    /// create pair which types are deduced
+    template <class X, class Y> constexpr Pair<X, Y>
+    pair(X x, Y y) { return Pair<X, Y>{x, y}; }
+
     /// triple of values with possible different types
-    template <class X, class Y = X, class Z = Y> struct Triple { X x; Y y; Z z; };
+    template <class X, class Y = X, class Z = Y>
+    struct Triple {
+        X x; Y y; Z z;
+        constexpr bool operator==(Triple& other) const { return x == other.x && y == other.y && z == other.z; }
+        constexpr bool operator!=(Triple& other) const { return !operator==(other); }
+    };
+
+    /// create triple which types are deduced
+    template <class X, class Y, class Z> constexpr Triple<X, Y, Z>
+    triple(X x, Y y, Z z) { return Triple<X, Y, Z>{x, y, z}; }
 
     /// python-like len
     template <typename Container> constexpr auto

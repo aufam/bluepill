@@ -1,6 +1,8 @@
 #ifndef ETL_ARRAY_H
 #define ETL_ARRAY_H
 
+#include "etl/type_traits.h"
+
 namespace Project::etl {
 
     /// static contiguous array
@@ -29,6 +31,10 @@ namespace Project::etl {
         constexpr const T& operator [](size_t i) const { return buffer[i]; }
     };
 
+    /// create array with variadic template function, array size is deduced
+    template<typename T, typename... U>
+    constexpr Array<enable_if_t<(is_same_v<T, U> && ...), T>, 1 + sizeof...(U)>
+    array(T t, U... u) { return Array<T, 1 + sizeof...(U)>{t, u...}; }
 }
 
 #endif //ETL_ARRAY_H

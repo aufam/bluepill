@@ -1,8 +1,6 @@
 #ifndef ETL_TUPLE_H
 #define ETL_TUPLE_H
 
-#include "etl/algorithm.h"
-
 namespace Project::etl {
     /// contains the actual value for one item in the tuple.
     /// @tparam i allows the get function to find the value in O(1) time
@@ -21,21 +19,21 @@ namespace Project::etl {
             , public xTupleImpl<i + 1, TailItems...> {};
 
     /// obtain a reference to i-th item in a tuple
-    template <size_t i, typename HeadItem, typename... TailItems>
-    auto& get(xTupleImpl<i, HeadItem, TailItems...>& tuple) {
-        return tuple.xTupleLeaf<i, HeadItem>::item;
-    }
-    template <size_t i, typename HeadItem, typename... TailItems>
-    auto&& get(xTupleImpl<i, HeadItem, TailItems...>&& tuple) {
-        return move(tuple.xTupleLeaf<i, HeadItem>::item);
-    }
-    template <size_t i, typename HeadItem, typename... TailItems>
-    constexpr auto& get(const xTupleImpl<i, HeadItem, TailItems...>& tuple) {
-        return tuple.xTupleLeaf<i, HeadItem>::item;
-    }
+    template <size_t i, typename HeadItem, typename... TailItems> auto&
+    get(xTupleImpl<i, HeadItem, TailItems...>& tuple) { return tuple.xTupleLeaf<i, HeadItem>::item; }
+
+    template <size_t i, typename HeadItem, typename... TailItems> auto&&
+    get(xTupleImpl<i, HeadItem, TailItems...>&& tuple) { return move(tuple.xTupleLeaf<i, HeadItem>::item); }
+
+    template <size_t i, typename HeadItem, typename... TailItems> constexpr auto&
+    get(const xTupleImpl<i, HeadItem, TailItems...>& tuple) { return tuple.xTupleLeaf<i, HeadItem>::item; }
 
     /// fixed size container, which holds elements of possibly different types
     template <typename... Items> using Tuple = xTupleImpl<0, Items...>;
+
+    /// create tuple with variadic template function
+    template <typename... Items> constexpr Tuple<Items...>
+    tuple(Items... items) { return Tuple<Items...>{items...}; }
 
 }
 

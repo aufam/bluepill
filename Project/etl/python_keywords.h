@@ -1,7 +1,11 @@
 #ifndef ETL_PYTHON_KEYWORDS_H
 #define ETL_PYTHON_KEYWORDS_H
 
-/* not all keywords are exactly like python's */
+/*
+ * warning!!!
+ * - not all keywords are exactly like python's
+ * - don't put this to a header file
+ * */
 
 #include <ciso646> // or, and, not
 #define in :

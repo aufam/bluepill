@@ -1,11 +1,14 @@
 #ifndef ETL_VECTOR_H
 #define ETL_VECTOR_H
 
+#include "etl/type_traits.h"
+
 namespace Project::etl {
 
     /// dynamic contiguous array
     template <class T>
     class Vector {
+    protected:
         T* buffer;
         size_t nItems;
         Vector(T* buffer, size_t nItems) : buffer(buffer), nItems(nItems) {}
@@ -77,6 +80,21 @@ namespace Project::etl {
             nItems++;
         }
 
+        void remove(size_t index) {
+            if (index >= this->len()) return;
+
+            auto buf = new T[this->len() - 1];
+            size_t i = 0;
+            for (auto& item : *this) {
+                if (i == index) continue;
+                buf[i++] = item;
+            }
+
+            delete [] buffer;
+            buffer = buf;
+            --nItems;
+        }
+
         Vector& operator += (const Vector& other) {
             append(other);
             return *this;
@@ -86,6 +104,11 @@ namespace Project::etl {
             return *this;
         }
     };
+
+    /// create vector with variadic template function, Type is deduced
+    template<typename T, typename... U>
+    Vector<enable_if_t<(is_same_v<T, U> && ...), T>>
+    vector(T t, U...u) { return Vector<T>{t, u...}; }
 }
 
 #endif //ETL_VECTOR_H

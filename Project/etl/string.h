@@ -105,6 +105,40 @@ namespace Project::etl {
         bool isContaining(const char* other) const { return isContaining(other, strlen(other)); }
     };
 
+    /// simple split string class using strtok
+    /// @tparam N string buffer size
+    /// @tparam M argv buffer size, default = 16
+    template <size_t N = ETL_STRING_DEFAULT_SIZE, size_t M = 16>
+    struct SplitString {
+        size_t argc = 0;    ///< number of arguments
+        char *argv[M] = {}; ///< array of argument values
+        String<N> str;      ///< string to be split
+
+        SplitString(const char * text, const char *separator = " ") : str(text) {
+            for (; argc < M; argc++) {
+                argv[argc] = strtok(argc == 0 ? str.data() : nullptr, separator);
+                if (argv[argc] == nullptr) break;
+            }
+        }
+        SplitString(const String<N> & text, const char *separator = " ") : str(text) {
+            for (; argc < M; argc++) {
+                argv[argc] = strtok(argc == 0 ? str.data() : nullptr, separator);
+                if (argv[argc] == nullptr) break;
+            }
+        }
+
+        String<M> operator [](size_t index) {
+            if (index >= argc) return nullptr;
+            return { argv[index] };
+        }
+
+        char* begin() { return argv[0]; }
+        char* end()   { return argv[argc]; }
+
+        char* front() { return argv[0]; }
+        char* back()  { return argv[argc - 1]; }
+    };
+
 }
 
 #endif //ETL_STRING_H

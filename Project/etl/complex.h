@@ -201,10 +201,10 @@ namespace Project::etl {
     constexpr enable_if_t<! is_complex_v<T>, bool> operator < (T val, const complex<C>& c) {
         return complex<C> { val } < c;
     }
-}
 
-constexpr auto operator ""_i(long double val) {
-    return Project::etl::complex8 { 0.f, static_cast<float>(std::abs(val)) };
+    namespace literals {
+        constexpr auto operator ""_i(long double val) { return complex8 { 0.f, static_cast<float>(std::abs(val)) }; }
+    }
 }
 
 #endif //ETL_COMPLEX_H
