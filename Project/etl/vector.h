@@ -106,9 +106,8 @@ namespace Project::etl {
     };
 
     /// create vector with variadic template function, Type is deduced
-    template<typename T, typename... U>
-    Vector<enable_if_t<(is_same_v<T, U> && ...), T>>
-    vector(T t, U...u) { return Vector<T>{t, u...}; }
+    template<typename T, typename... U> Vector<enable_if_t<(is_same_v<T, U> && ...), T>>
+    vector(const T& t, const U&...u) { return Vector<T>{t, u...}; }
 }
 
 #endif //ETL_VECTOR_H

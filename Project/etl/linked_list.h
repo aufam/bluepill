@@ -148,9 +148,8 @@ namespace Project::etl {
     };
 
     /// create linked list with variadic template function, Type is deduced
-    template<typename T, typename... U>
-    LinkedList<enable_if_t<(is_same_v<T, U> && ...), T>>
-    list(T t, U...u) { return LinkedList<T>{t, u...}; }
+    template<typename T, typename... U> LinkedList<enable_if_t<(is_same_v<T, U> && ...), T>>
+    list(const T& t, const U&...u) { return LinkedList<T>{t, u...}; }
 
     template <class T>
     struct LinkedList<T>::Node {

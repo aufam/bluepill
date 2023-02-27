@@ -19,7 +19,7 @@ namespace Project::etl {
         constexpr R operator ()(Args... args) const { return fn ? fn(context, args...) : R(); }
 
         explicit constexpr operator bool () const { return fn; }
-        explicit operator Fn () const { return fn; }
+        explicit constexpr operator Fn () const { return fn; }
     };
 }
 

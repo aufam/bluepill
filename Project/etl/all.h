@@ -16,6 +16,7 @@
 #include "etl/linked_list.h"
 #include "etl/map.h"
 #include "etl/math.h"
+#include "etl/ref.h"
 #include "etl/string.h"
 #include "etl/tuple.h"
 #include "etl/vector.h"

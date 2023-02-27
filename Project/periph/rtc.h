@@ -27,7 +27,7 @@ namespace Project::Periph {
         /// get time and date and store to sTime and sDate
         void update() {
             auto now = etl::Time::now();
-            if (now - lastUpdate < 1s) return;
+            if (now - lastUpdate < etl::Time::s2time(1)) return;
 
             HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
             HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);

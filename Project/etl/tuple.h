@@ -32,8 +32,8 @@ namespace Project::etl {
     template <typename... Items> using Tuple = xTupleImpl<0, Items...>;
 
     /// create tuple with variadic template function
-    template <typename... Items> constexpr Tuple<Items...>
-    tuple(Items... items) { return Tuple<Items...>{items...}; }
+    template <typename HeadItem, typename... Items> constexpr Tuple<HeadItem, Items...>
+    tuple(const HeadItem& head, const Items&... items) { return Tuple<HeadItem, Items...>{head, items...}; }
 
 }
 

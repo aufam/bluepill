@@ -73,9 +73,7 @@ void mainThread(void *) {
     encoder.setIncrementCB([](auto) { event << EVENT_ROT_CW; });
     encoder.setDecrementCB([](auto) { event << EVENT_ROT_CCW; });
 
-    size_t optionIndex = 0;
-    bool editMode = false;
-    for (;;) {
+    for (auto [optionIndex, editMode] = pair(0u, false);;) {
         oled.setCursor(0, 0);
         for (auto [i, option] in enumerate(options)) {
             option.print(optionIndex == i);
