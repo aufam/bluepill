@@ -37,9 +37,28 @@ namespace Project::etl {
     end(T (&arr)[N]) { return arr + N; }
 
     /// pair of values with possible different types
-    template <class X, class Y = X> struct Pair { X x; Y y; } ;
+    template <class X, class Y = X>
+    struct Pair {
+        X x; Y y;
+        constexpr bool operator==(const Pair& other) const { return x == other.x && y == other.y; }
+        constexpr bool operator!=(const Pair& other) const { return !operator==(other); }
+    };
+
+    /// create pair, types are deduced
+    template <class X, class Y> constexpr Pair<X, Y>
+    pair(X x, Y y) { return Pair<X, Y>{x, y}; }
+
     /// triple of values with possible different types
-    template <class X, class Y = X, class Z = Y> struct Triple { X x; Y y; Z z; };
+    template <class X, class Y = X, class Z = Y>
+    struct Triple {
+        X x; Y y; Z z;
+        constexpr bool operator==(const Triple& other) const { return x == other.x && y == other.y && z == other.z; }
+        constexpr bool operator!=(const Triple& other) const { return !operator==(other); }
+    };
+
+    /// create triple, types are deduced
+    template <class X, class Y, class Z> constexpr Triple<X, Y, Z>
+    triple(X x, Y y, Z z) { return Triple<X, Y, Z>{x, y, z}; }
 
     /// python-like len
     template <typename Container> constexpr auto
@@ -57,69 +76,74 @@ namespace Project::etl {
 
     /// python-like enumerate
     template <typename Iterator>
-    class enumerate_ {
+    class Enumerate {
         Iterator first, last;
         int cnt;
 
     public:
-        constexpr enumerate_(Iterator first, Iterator last, int cnt = 0)
+        constexpr Enumerate(Iterator first, Iterator last, int cnt = 0)
         : first(first), last(last), cnt(cnt) {}
 
-        constexpr enumerate_& begin() { return *this; }
-        constexpr enumerate_& end()   { return *this; }
-        constexpr bool operator != (const enumerate_&) { return first != last; }
-        constexpr void operator ++ ()   { ++first; ++cnt; }
-        constexpr auto operator * ()    { return Pair<int, decltype(*first)>{cnt, *first }; }
-        constexpr auto operator () ()   { auto res = *(*this); if (*this != end()) ++(*this); return res; }
+        constexpr Enumerate& begin() { return *this; }
+        constexpr Enumerate& end()   { return *this; }
+        constexpr bool operator!=(const Enumerate&) { return first != last; }
+        constexpr void operator++()   { ++first; ++cnt; }
+        constexpr auto operator*()    { return Pair<int, decltype(*first)>{cnt, *first }; }
+        constexpr auto operator()()   { auto res = *(*this); if (*this != end()) ++(*this); return res; }
     };
 
     template <typename Iterator> constexpr auto
-    enumerate(Iterator first, Iterator last, int cnt = 0) { return enumerate_(first, last, cnt); }
+    enumerate(Iterator first, Iterator last, int cnt = 0) { return Enumerate(first, last, cnt); }
     template <typename Container> constexpr auto
-    enumerate(Container& cont, int cnt = 0) { return enumerate_(begin(cont), end(cont), cnt); }
+    enumerate(Container& cont, int cnt = 0) { return Enumerate(begin(cont), end(cont), cnt); }
 
     /// python-like zip
     template <typename Iterator1, typename Iterator2>
-    class zip_ {
+    class Zip {
         Pair<Iterator1, Iterator2> first, last;
 
     public:
-        constexpr zip_(Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2)
+        constexpr Zip(Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2)
         : first { first1, first2 }, last { last1, last2 } {}
 
-        constexpr zip_& begin() { return *this; }
-        constexpr zip_& end()   { return *this; }
-        constexpr bool operator != (const zip_&) { return first.x != last.x && first.y != last.y; }
-        constexpr void operator ++ ()   { ++first.x; ++first.y; }
-        constexpr auto operator * ()    { return Pair<decltype(*first.x), decltype(*first.y)> { *first.x, *first.y }; }
-        constexpr auto operator () ()   { auto res = *(*this); if (*this != end()) ++(*this); return res; }
+        constexpr Zip& begin() { return *this; }
+        constexpr Zip& end()   { return *this; }
+        constexpr bool operator!=(const Zip&) { return first.x != last.x && first.y != last.y; }
+        constexpr void operator++()   { ++first.x; ++first.y; }
+        constexpr auto operator*()    { return Pair<decltype(*first.x), decltype(*first.y)> { *first.x, *first.y }; }
+        constexpr auto operator()()   { auto res = *(*this); if (*this != end()) ++(*this); return res; }
     };
 
     template <typename Iterator1, typename Iterator2> constexpr auto
-    zip(Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2) { return zip_(first1, last1, first2, last2); }
+    zip(Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2) { return Zip(first1, last1, first2, last2); }
     template <typename Container1, typename Container2> constexpr auto
-    zip(Container1& cont1, Container2& cont2) { return zip_(begin(cont1), end(cont1), begin(cont2), end(cont2)); }
+    zip(Container1& cont1, Container2& cont2) { return Zip(begin(cont1), end(cont1), begin(cont2), end(cont2)); }
 
     /// python-like range
-    class range_ {
-        int first, last;
-        unsigned int step;
+    template <typename T>
+    class Range {
+        T first, last;
+        add_unsigned_t<T> step;
         bool reverse;
 
     public:
-        constexpr range_(int first, int last, unsigned int step = 1)
+        typedef T Type;
+
+        constexpr Range(T first, T last, add_unsigned_t<T> step)
         : first(first), last(last), step(step), reverse(first > last) {}
 
-        constexpr range_& begin() { return *this; }
-        constexpr range_& end()   { return *this; }
-        constexpr bool operator != (const range_&) const { return reverse ? first > last : first < last; }
-        constexpr void operator ++ ()       { first += (reverse ? -int(step) : int(step)); }
-        constexpr int operator * () const   { return first; }
-        constexpr int operator () ()        { auto res = *(*this); if (*this != end()) ++(*this); return res; }
+        constexpr Range& begin() { return *this; }
+        constexpr Range& end()   { return *this; }
+        constexpr bool operator!=(const Range&) const { return reverse ? first > last : first < last; }
+        constexpr void operator++()     { first += reverse ? -T(step) : T(step); }
+        constexpr T operator*() const   { return first; }
+        constexpr T operator()()        { auto res = *(*this); if (*this != end()) ++(*this); return res; }
     };
 
-    constexpr auto range(int last) { return range_(0, last, 1); }
-    constexpr auto range(int first, int last, unsigned int step = 1) { return range_(first, last, step); }
+    template <typename T> constexpr enable_if_t<is_arithmetic_v<T>, Range<T>>
+    range(T last) { return Range(T(0), last, add_unsigned_t<T>(1)); }
+    template <typename T> constexpr enable_if_t<is_arithmetic_v<T>, Range<T>>
+    range(T first, T last, add_unsigned_t<T> step = 1) { return Range(first, last, step); }
 
 }
 

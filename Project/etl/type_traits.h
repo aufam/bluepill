@@ -66,7 +66,6 @@ namespace Project::etl {
     template <typename T> using remove_volatile_t = typename remove_volatile<T>::type;
     template <typename T> using add_const_t = typename add_const<T>::type;
 
-
     /// add_volatile
     template <typename T> struct add_volatile { typedef volatile T type; };
     template <typename T> struct add_volatile<volatile T> { typedef volatile T type; };
@@ -155,6 +154,30 @@ namespace Project::etl {
     template <typename T> struct is_unsigned<volatile T> : is_unsigned<T> {};
     template <typename T> struct is_unsigned<const volatile T> : is_unsigned<T> {};
     template <typename T> inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
+
+    /// add_unsigned
+    template <typename T> struct add_unsigned { typedef T type; };
+    template <> struct add_unsigned<char>      { typedef unsigned char type; };
+    template <> struct add_unsigned<short>     { typedef unsigned short type; };
+    template <> struct add_unsigned<int>       { typedef unsigned int type; };
+    template <> struct add_unsigned<long>      { typedef unsigned long type; };
+    template <> struct add_unsigned<long long> { typedef unsigned long long type; };
+    template <typename T> using add_unsigned_t = typename add_unsigned<T>::type;
+    template <typename T> struct add_unsigned<const T> : add_const<add_unsigned_t<T>> {};
+    template <typename T> struct add_unsigned<volatile T> : add_volatile<add_unsigned_t<T>> {};
+    template <typename T> struct add_unsigned<const volatile T> : add_const_volatile<add_unsigned_t<T>> {};
+
+    /// remove_unsigned
+    template <typename T> struct remove_unsigned           { typedef T type; };
+    template <> struct remove_unsigned<unsigned char>      { typedef char type; };
+    template <> struct remove_unsigned<unsigned short>     { typedef short type; };
+    template <> struct remove_unsigned<unsigned int>       { typedef int type; };
+    template <> struct remove_unsigned<unsigned long>      { typedef long type; };
+    template <> struct remove_unsigned<unsigned long long> { typedef long long type; };
+    template <typename T> using remove_unsigned_t = typename remove_unsigned<T>::type;
+    template <typename T> struct remove_unsigned<const T> : add_const<remove_unsigned_t<T>> {};
+    template <typename T> struct remove_unsigned<volatile T> : add_volatile<remove_unsigned_t<T>> {};
+    template <typename T> struct remove_unsigned<const volatile T> : add_const_volatile<remove_unsigned_t<T>> {};
 
     /// is_integral
     template <typename T> struct is_integral : false_type {};

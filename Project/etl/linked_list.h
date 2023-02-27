@@ -1,8 +1,10 @@
 #ifndef ETL_LINKED_LIST_H
 #define ETL_LINKED_LIST_H
 
+#include "etl/type_traits.h"
+
 #ifndef ETL_LINKED_LIST_USE_MUTEX
-#define ETL_LINKED_LIST_USE_MUTEX 1
+#define ETL_LINKED_LIST_USE_MUTEX 0
 #endif
 
 #if ETL_LINKED_LIST_USE_MUTEX == 1
@@ -144,6 +146,10 @@ namespace Project::etl {
             return back();
         }
     };
+
+    /// create linked list with variadic template function, Type is deduced
+    template<typename T, typename... U> LinkedList<enable_if_t<(is_same_v<T, U> && ...), T>>
+    list(const T& t, const U&...u) { return LinkedList<T>{t, u...}; }
 
     template <class T>
     struct LinkedList<T>::Node {

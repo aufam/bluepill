@@ -3,6 +3,7 @@
 using namespace Project;
 using namespace Project::Periph;
 using namespace Project::etl;
+using namespace Project::etl::literals;
 
 /// override operator new with malloc from @p heap_4.c
 void *operator new(size_t size) { return pvPortMalloc(size); }

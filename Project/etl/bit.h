@@ -8,9 +8,7 @@ namespace Project::etl {
 
     /// reinterpret the object representation of one type as that of another
     template <typename TDestination, typename TSource>
-    enable_if_t<
-            is_same_size_v<TDestination, TSource> && is_trivially_copyable_v<TDestination> && is_trivially_copyable_v<TSource>,
-            TDestination>
+    enable_if_t<is_same_size_v<TDestination, TSource>, TDestination>
     bit_cast(const TSource& source) {
         TDestination destination;
         memcpy(&destination, &source, sizeof(TDestination));

@@ -1,8 +1,8 @@
 #ifndef ETL_MAP_H
 #define ETL_MAP_H
 
-#include "etl/tuple.h"
 #include "etl/vector.h"
+#include "etl/utility.h"
 
 namespace Project::etl {
 
@@ -12,20 +12,39 @@ namespace Project::etl {
         typedef K Key;
         typedef V Value;
 
-        bool hasKey(const K& key) {
-            for (auto& [x, y] : *this) if (x == key) return true;
+        bool has(const K& key) const {
+            for (auto &[x, y]: *this) if (x == key) return true;
             return false;
         }
 
-        V& operator[] (const Key& key) {
-            for (auto& [x, y] : *this) if (x == key) return y;
-            this->append(Pair<K,V> { key, Value {}});
+        void remove(const K& key) {
+            auto index = this->len();
+            if (index == 0) return;
+
+            for (auto [i, pair] : enumerate(*this)) if (pair.x == key) index = i;
+            if (index >= this->len()) return;
+
+            auto buf = new Pair<K, V>[this->len() - 1];
+            size_t i = 0;
+            for (auto [j, pair] : enumerate(*this)) {
+                if (j == index) continue;
+                buf[i++] = pair;
+            }
+
+            delete [] this->buffer;
+            this->buffer = buf;
+            --this->nItems;
+        }
+
+        V& operator[](const K& key) {
+            for (auto &[x, y]: *this) if (x == key) return y;
+            this->append(Pair<K, V>{key, Value{}});
             return this->back().y;
         }
 
-        const V& operator[] (const Key& key) const {
-            for (auto& [x, y] : *this) if (x == key) return y;
-            return Value {};
+        const V& operator[](const K& key) const {
+            for (auto &[x, y]: *this) if (x == key) return y;
+            return Value{};
         }
     };
 }
