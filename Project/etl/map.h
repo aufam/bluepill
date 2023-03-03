@@ -26,19 +26,19 @@ namespace Project::etl {
 
             auto buf = new Pair<K, V>[this->len() - 1];
             size_t i = 0;
-            for (auto [j, pair] : enumerate(*this)) {
+            for (auto [j, item] : enumerate(*this)) {
                 if (j == index) continue;
-                buf[i++] = pair;
+                buf[i++] = item;
             }
 
-            delete [] this->buffer;
-            this->buffer = buf;
+            delete [] this->buf;
+            this->buf = buf;
             --this->nItems;
         }
 
         V& operator[](const K& key) {
             for (auto &[x, y]: *this) if (x == key) return y;
-            this->append(Pair<K, V>{key, Value{}});
+            this->append(pair(key, Value{}));
             return this->back().y;
         }
 

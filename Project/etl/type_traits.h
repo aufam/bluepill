@@ -248,8 +248,7 @@ namespace Project::etl {
     template <typename T> struct is_rvalue_reference<T&&> : true_type {};
     template <typename T> inline constexpr bool is_rvalue_reference_v = is_rvalue_reference<T>::value;
 
-    template<typename T> struct is_reference :
-            integral_constant<bool, is_lvalue_reference_v<T> || is_rvalue_reference_v<T>> {};
+    template<typename T> struct is_reference : integral_constant<bool, is_lvalue_reference_v<T> || is_rvalue_reference_v<T>> {};
     template <typename T> inline constexpr bool is_reference_v = is_reference<T>::value;
 
     /// is_trivially_copyable
@@ -257,6 +256,8 @@ namespace Project::etl {
     struct is_trivially_copyable : public bool_constant<is_arithmetic_v<T> || is_pointer_v<T>> {};
     template<typename T> inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
 
+    /// is_empty
+    template<typename T> struct is_empty : public integral_constant<bool, __is_empty(T)> {};
 }
 
 #endif //ETL_TYPE_TRAITS_H

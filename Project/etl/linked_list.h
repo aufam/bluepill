@@ -1,33 +1,22 @@
 #ifndef ETL_LINKED_LIST_H
 #define ETL_LINKED_LIST_H
 
-#include "etl/type_traits.h"
-
-#ifndef ETL_LINKED_LIST_USE_MUTEX
-#define ETL_LINKED_LIST_USE_MUTEX 0
-#endif
-
-#if ETL_LINKED_LIST_USE_MUTEX == 1
-#include "etl/mutex.h"
-#define ETL_LINKED_LIST_SCOPE_LOCK() MutexScope lock(mutex)
-#else
-#define ETL_LINKED_LIST_SCOPE_LOCK()
-#endif
+#include "etl/utility.h"
 
 namespace Project::etl {
 
     /// doubly linked list. every item will be allocated to heap
     template <class T>
     struct LinkedList {
-        typedef T Type;
-        struct Node; ///< contains the item and pointer to next and prev items
-        struct Iterator; ///< iterator class to modify increment, decrement, bool operator, and dereference of Node*
+        struct iterator; ///< modify increment, decrement, bool operator, and dereference of Node*
+        typedef T value_type;
+        typedef T& reference;
+        typedef const T& const_reference;
 
     private:
-        mutable Iterator head = nullptr;
-#if ETL_LINKED_LIST_USE_MUTEX == 1
-        mutable Mutex mutex = {};
-#endif
+        struct Node; ///< contains the item and pointer to next and prev items
+        mutable iterator head;
+
         template <class ...Ts>
         void construct_(T firstItem, Ts... items) {
             push(firstItem);
@@ -35,54 +24,94 @@ namespace Project::etl {
         }
 
     public:
+        /// empty constructor
+        constexpr LinkedList() : head(nullptr) {}
+
+        /// variadic template function constructor
         template <class ...Ts>
-        LinkedList(T firstItem, Ts... items) {
-            init();
-            construct_(firstItem, items...);
+        LinkedList(T firstItem, Ts... items) : head(nullptr) { construct_(firstItem, items...); }
+
+        /// copy constructor
+        LinkedList(const LinkedList& l) : head(nullptr) {
+            for (auto& item : l) push(item);
         }
 
-        constexpr LinkedList() = default;
+        /// move constructor
+        LinkedList(LinkedList&& l) noexcept : head(move(l.head)) {
+            l.head = nullptr;
+        }
 
-        virtual ~LinkedList() { deinit(); }
+        /// copy assignment
+        LinkedList& operator=(const LinkedList& other) {
+            for (auto i : range(other.len())) operator[](i) = other[i];
+            return *this;
+        }
 
-#if ETL_LINKED_LIST_USE_MUTEX == 1
-        int init()   const { return mutex.init(); } /// init mutex
-        int deinit() const { clear(); return mutex.deinit(); } /// clear all item and deinit mutex
-#else
-        int init()   const { return 1; }
-        int deinit() const { clear(); return 1; } /// clear all item
-#endif
+        /// move assignment
+        LinkedList& operator=(LinkedList&& other) noexcept {
+            clear();
+            head = move(other.head);
+            other.head = nullptr;
+            return *this;
+        }
 
-        Iterator data()  const { return head; }
-        Iterator begin() const { return head; }
-        Iterator end()   const { return { nullptr }; }
-        Iterator tail()  const { return head + (len() - 1); }
+        virtual ~LinkedList() { clear(); }
+
+        iterator data()  const { return head; }
+        iterator begin() const { return head; }
+        iterator end()   const { return {nullptr }; }
+        iterator tail()  const { return head + (len() - 1); }
 
         /// @retval number of item
-        [[nodiscard]] size_t len() const {
+        size_t len() const {
             size_t res = 0;
             for (const auto& _ : *this) res++;
             return res;
         }
 
+        /// delete all items
+        void clear() const { while (pop()); }
+
         /// get the first item
         /// @warning make sure head is not null
-        [[nodiscard]] T& front() { return *head; }
-        [[nodiscard]] const T& front() const { return *head; }
+        reference front() { return *head; }
+        const_reference front() const { return *head; }
 
         /// get the last item
         /// @warning make sure tail() is not null
-        [[nodiscard]] T& back() { return *tail(); }
-        [[nodiscard]] const T& back() const { return *tail(); }
+        reference back() { return *tail(); }
+        const_reference back() const { return *tail(); }
 
-        /// delete all items
-        void clear() const {
-            while (pop());
+        /// get i-th item by dereference
+        /// @warning if head + i = null, it will make new node and return its item
+        /// @warning if i less than 0, it will iterate backward from the tail
+        reference operator [](int i) {
+            auto p = i >= 0 ? head + i : tail() + (i + 1);
+            if (p) return *p;
+            T dummy = {};
+            i >= 0 ? pushBack(dummy) : pushFront(dummy);
+            return i >= 0 ? back() : front();
         }
 
+        /// get i-th item by dereference
+        /// @warning if head + i = null, it will make new node and return its item
+        /// @warning if i less than 0, it will iterate backward from the tail
+        const_reference operator [](int i) const {
+            auto p = i >= 0 ? head + i : tail() + (i + 1);
+            if (p) return *p;
+            T dummy = {};
+            i >= 0 ? pushBack(dummy) : pushFront(dummy);
+            return i >= 0 ? back() : front();
+        }
+
+        explicit operator bool() const { return head; }
+
+        /// push operator
+        const LinkedList& operator <<(const T &item) const { push(item); return *this; }
+        const LinkedList& operator >>(T &item)       const { pop(item); return *this; }
+
         int push(const T& item) const {
-            ETL_LINKED_LIST_SCOPE_LOCK();
-            auto node = Iterator(item);
+            auto node = iterator(item);
             if (!node) return 0;
             if (!head) {
                 head = node;
@@ -92,8 +121,7 @@ namespace Project::etl {
         }
 
         int push(const T& item, size_t pos) const {
-            ETL_LINKED_LIST_SCOPE_LOCK();
-            auto node = Iterator(item);
+            auto node = iterator(item);
             if (!node) return 0;
             if (pos == 0) {
                 head.insertPrev(node);
@@ -109,7 +137,6 @@ namespace Project::etl {
         int pushFront(const T& item) const { return push(item, 0); }
 
         int pop(T& item, size_t pos = 0) const {
-            ETL_LINKED_LIST_SCOPE_LOCK();
             auto node = head + pos;
             if (node) item = *node;
             if (pos == 0) head = head.next();
@@ -122,32 +149,9 @@ namespace Project::etl {
         int popFront()        const { T dummy = {}; return pop(dummy); }
         int popBack(T& item)  const { return pop(item, len() - 1); }
         int popFront(T& item) const { return pop(item); }
-
-        const LinkedList& operator <<(const T &item) const { push(item); return *this; }
-        const LinkedList& operator >>(T &item)       const { pop(item); return *this; }
-
-        explicit operator bool() const { return head; }
-
-        /// get i-th item by dereference
-        /// @warning if head + i = null, make new node and return last item
-        [[nodiscard]] T& operator [](size_t i) {
-            if (head + i != nullptr) return head[i];
-            T dummy = {};
-            pushBack(dummy);
-            return back();
-        }
-
-        /// get i-th item by dereference
-        /// @warning if head + i = null, make new node and return last item
-        [[nodiscard]] const T& operator [](size_t i) const {
-            if (head + i != nullptr) return head[i];
-            T dummy = {};
-            pushBack(dummy);
-            return back();
-        }
     };
 
-    /// create linked list with variadic template function, Type is deduced
+    /// create linked list with variadic template function, type is deduced
     template<typename T, typename... U> LinkedList<enable_if_t<(is_same_v<T, U> && ...), T>>
     list(const T& t, const U&...u) { return LinkedList<T>{t, u...}; }
 
@@ -160,21 +164,21 @@ namespace Project::etl {
     };
 
     template <class T>
-    struct LinkedList<T>::Iterator {
+    struct LinkedList<T>::iterator {
         Node* node;
-        Iterator(Node* node) : node(node) {}
-        explicit Iterator(const T& item) : node(new Node(item)) {}
+        iterator(Node* node) : node(node) {}
+        explicit iterator(const T& item) : node(new Node(item)) {}
 
         T* item() { return node ? &node->item : nullptr; }
-        Iterator next() { return { node ? node->next : nullptr }; }
-        Iterator prev() { return { node ? node->prev : nullptr }; }
+        iterator next() { return {node ? node->next : nullptr }; }
+        iterator prev() { return {node ? node->prev : nullptr }; }
 
         /// insert other iterator to the next/prev of this iterator
         /// @param other other iterator
         /// @param nextOrPref false: insert to next (default), true: insert to prev
         /// @retval 0: fail, 1: success
         /// @note other node and this node can't be null. other next and other prev have to be null
-        int insert(Iterator other, bool nextOrPref = false) {
+        int insert(iterator other, bool nextOrPref = false) {
             if (!node || !other || other.next() || other.prev()) return 0;
             auto nx = next().node;
             auto pv = prev().node;
@@ -191,7 +195,7 @@ namespace Project::etl {
             node->prev = other.node;
             return 1;
         }
-        int insertPrev(Iterator other) { return insert(other, true); }
+        int insertPrev(iterator other) { return insert(other, true); }
 
         /// detach this iterator from its next and prev iterator
         /// @retval 1: success, 0: already detached or this node = null
@@ -216,47 +220,47 @@ namespace Project::etl {
         T& operator *() { return node->item; }
         const T& operator *() const { return node->item; }
 
-        bool operator ==(const Iterator& other) const { return node == other.node; }
-        bool operator !=(const Iterator& other) const { return node != other.node; }
+        bool operator ==(const iterator& other) const { return node == other.node; }
+        bool operator !=(const iterator& other) const { return node != other.node; }
         explicit operator bool() const { return node != nullptr; }
 
-        Iterator operator +(int pos) const {
-            Iterator res { node };
+        iterator operator +(int pos) const {
+            iterator res {node };
             if (pos > 0)
                 for (; pos > 0 && res; res = res.next()) pos--;
             else if (pos < 0)
                 for (; pos < 0 && res; res = res.prev()) pos++;
             return res;
         }
-        Iterator operator -(int pos) const {
+        iterator operator -(int pos) const {
             return *this + (-pos);
         }
 
-        Iterator& operator +=(int pos) {
+        iterator& operator +=(int pos) {
             *this = *this + pos;
             return *this;
         }
-        Iterator& operator -=(int pos) {
+        iterator& operator -=(int pos) {
             *this = *this - pos;
             return *this;
         }
 
-        Iterator& operator ++() {
+        iterator& operator ++() {
             if (node) node = node->next;
             return *this;
         }
-        Iterator operator ++(int) {
-            Iterator res { node };
+        iterator operator ++(int) {
+            iterator res {node };
             if (node) node = node->next;
             return res;
         }
 
-        Iterator& operator --() {
+        iterator& operator --() {
             if (node) node = node->prev;
             return *this;
         }
-        Iterator operator --(int) {
-            Iterator res { node };
+        iterator operator --(int) {
+            iterator res {node };
             if (node) node = node->prev;
             return res;
         }

@@ -128,7 +128,7 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    for (int i = 0; i < sizeof(blinkSymbols); i++) {
+    for (size_t i = 0; i < sizeof(blinkSymbols); i++) {
       if (blinkSymbols[i] == '\0') break;
       switch (blinkSymbols[i]) {
         case '1': HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET); osDelay(150); break;

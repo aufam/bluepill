@@ -45,7 +45,7 @@ namespace Project::etl {
     };
 
     /// create pair, types are deduced
-    template <class X, class Y> constexpr Pair<X, Y>
+    template <class X, class Y> constexpr auto
     pair(X x, Y y) { return Pair<X, Y>{x, y}; }
 
     /// triple of values with possible different types
@@ -57,7 +57,7 @@ namespace Project::etl {
     };
 
     /// create triple, types are deduced
-    template <class X, class Y, class Z> constexpr Triple<X, Y, Z>
+    template <class X, class Y, class Z> constexpr auto
     triple(X x, Y y, Z z) { return Triple<X, Y, Z>{x, y, z}; }
 
     /// python-like len

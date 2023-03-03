@@ -181,7 +181,7 @@ namespace Project::etl {
     };
 
     /// create string, size is deduced
-    template <size_t N> constexpr String<N>
+    template <size_t N> constexpr auto
     string(const char (&text)[N]) {
         String<N> res;
         copy(text, text + N, res.data());
@@ -189,7 +189,7 @@ namespace Project::etl {
     }
 
     /// create string from 2 strings, size is s1.size() + s2.size() - 1
-    /// @warning string buffer might be unnecessarily large
+    /// @warning string buf might be unnecessarily large
     template <size_t N, size_t M> constexpr auto
     operator+(const String<N>& s1, const String<M>& s2) {
         String<N + M -1> res = s1;
@@ -198,8 +198,8 @@ namespace Project::etl {
     }
 
     /// simple split string using strtok
-    /// @tparam N string buffer size, default = ETL_STRING_DEFAULT_SIZE
-    /// @tparam M argv buffer size, default = ETL_SHORT_STRING_DEFAULT_SIZE
+    /// @tparam N string buf size, default = ETL_STRING_DEFAULT_SIZE
+    /// @tparam M argv buf size, default = ETL_SHORT_STRING_DEFAULT_SIZE
     template <size_t N = ETL_STRING_DEFAULT_SIZE, size_t M = ETL_SHORT_STRING_DEFAULT_SIZE>
     class SplitString {
         size_t argc = 0;    ///< number of arguments
@@ -217,9 +217,7 @@ namespace Project::etl {
         /// construct from String
         SplitString(String<N>& text, const char* separator = " ") : SplitString(text.data(), separator) {}
 
-        char* operator [](size_t index) {
-            return index < argc ? argv[index] : nullptr;
-        }
+        char* operator [](size_t index) { return index < argc ? argv[index] : nullptr; }
 
         size_t len()  { return argc; }
 
@@ -229,16 +227,16 @@ namespace Project::etl {
         char* front() { return argv[0]; }
         char* back()  { return argv[argc - 1]; }
     };
+}
 
-    namespace literals {
-        constexpr auto operator ""s(const char* text, size_t n) {
-            String<ETL_SHORT_STRING_DEFAULT_SIZE> s;
-            copy(text, text + n, s.data());
-            s[ETL_SHORT_STRING_DEFAULT_SIZE - 1] = '\0';
-            return s;
-        }
+namespace Project::etl::literals {
+
+    constexpr auto operator ""s(const char* text, size_t n) {
+        String<ETL_SHORT_STRING_DEFAULT_SIZE> s;
+        copy(text, text + n, s.data());
+        s[ETL_SHORT_STRING_DEFAULT_SIZE - 1] = '\0';
+        return s;
     }
-
 }
 
 #endif //ETL_STRING_H
