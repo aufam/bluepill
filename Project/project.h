@@ -2,6 +2,10 @@
 #define PROJECT_H
 
 #ifdef __cplusplus
+#include "etl/all.h"
+
+#include "oled/oled.h"
+
 #include "periph/adc.h"
 #include "periph/can.h"
 #include "periph/encoder.h"

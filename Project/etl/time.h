@@ -1,7 +1,6 @@
 #ifndef ETL_TIME_H
 #define ETL_TIME_H
 
-#include "FreeRTOS.h"
 #include "cmsis_os2.h"
 
 namespace Project::etl {
@@ -25,34 +24,34 @@ namespace Project::etl {
 
         constexpr explicit operator float() const { return (float) tick; }
         
-        constexpr Time operator-(Time other) const { return Time { tick - other.tick }; }
-        constexpr Time operator+(Time other) const { return Time { tick + other.tick }; }
+        constexpr Time operator - (Time other) const { return Time { tick - other.tick }; }
+        constexpr Time operator + (Time other) const { return Time { tick + other.tick }; }
 
-        constexpr float operator/(Time other)  const { return (float) tick / (float) other.tick; }
-        constexpr Time operator /(int other)   const { return Time { tick / other }; }
-        constexpr Time operator *(float other) const { return Time { uint32_t ((float) tick * other) }; }
+        constexpr float operator / (Time other) const { return (float) tick / (float) other.tick; }
+        constexpr Time operator  / (int other)   const { return Time { tick / other }; }
+        constexpr Time operator  * (float other) const { return Time { uint32_t ((float) tick * other) }; }
 
-        constexpr Time& operator-=(Time other) { tick -= other.tick; return *this; }
-        constexpr Time& operator+=(Time other) { tick += other.tick; return *this; }
+        constexpr Time& operator -= (Time other) { tick -= other.tick; return *this; }
+        constexpr Time& operator += (Time other) { tick += other.tick; return *this; }
 
-        constexpr bool operator==(Time other) const { return tick == other.tick; }
-        constexpr bool operator!=(Time other) const { return tick != other.tick; }
-        constexpr bool operator>=(Time other) const { return tick >= other.tick; }
-        constexpr bool operator<=(Time other) const { return tick <= other.tick; }
-        constexpr bool operator >(Time other) const { return tick > other.tick; }
-        constexpr bool operator <(Time other) const { return tick < other.tick; }
+        constexpr bool operator == (Time other) const { return tick == other.tick; }
+        constexpr bool operator != (Time other) const { return tick != other.tick; }
+        constexpr bool operator >= (Time other) const { return tick >= other.tick; }
+        constexpr bool operator <= (Time other) const { return tick <= other.tick; }
+        constexpr bool operator  > (Time other) const { return tick > other.tick; }
+        constexpr bool operator  < (Time other) const { return tick < other.tick; }
     };
 
     inline static constexpr Time timeInfinite(osWaitForever);
     inline static constexpr Time timeImmediate(0);
 
     inline void sleep(Time time) { osDelay(time.tick); }
-}
 
-namespace Project::etl::literals {
-    constexpr auto operator ""ms   (unsigned long long val) { return Time::ms2time(val); }
-    constexpr auto operator ""s    (unsigned long long val) { return Time::s2time(val); }
-    constexpr auto operator ""min  (unsigned long long val) { return Time::min2time(val); }
+    namespace literals {
+        constexpr auto operator ""ms   (unsigned long long val) { return Time::ms2time(val); }
+        constexpr auto operator ""s    (unsigned long long val) { return Time::s2time(val); }
+        constexpr auto operator ""min  (unsigned long long val) { return Time::min2time(val); }
+    }
 }
 
 #endif //ETL_TIME_H

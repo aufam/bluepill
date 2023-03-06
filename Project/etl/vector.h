@@ -1,7 +1,7 @@
 #ifndef ETL_VECTOR_H
 #define ETL_VECTOR_H
 
-#include "etl/algorithm.h"
+#include "etl/type_traits.h"
 
 namespace Project::etl {
 
@@ -9,135 +9,89 @@ namespace Project::etl {
     template <class T>
     class Vector {
     protected:
-        T* buf;
+        T* buffer;
         size_t nItems;
-        Vector(T* buffer, size_t nItems) : buf(buffer), nItems(nItems) {}
+        Vector(T* buffer, size_t nItems) : buffer(buffer), nItems(nItems) {}
 
-        T* insert_(const Vector& other) const {
+        T* newInsert(const Vector& other) const {
             auto temp = new T[nItems + other.nItems];
-            copy(begin(), end(), temp);
-            copy(other.begin(), other.end(), temp + nItems);
+            memcpy(temp, buffer, nItems * sizeof (T));
+            memcpy(temp + nItems, other.buffer, other.nItems * sizeof (T));
             return temp;
         }
 
-        T* insert_(const T& other) const {
+        T* newInsert(const T& other) const {
             auto temp = new T[nItems + 1];
-            copy(begin(), end(), temp);
-            temp[nItems] = other;
+            memcpy(temp, buffer, nItems * sizeof (T));
+            memcpy(temp + nItems, &other, sizeof (T));
             return temp;
         }
 
     public:
-        typedef T value_type;
-        typedef T* iterator;
-        typedef const T* const_iterator;
-        typedef T& reference;
-        typedef const T& const_reference;
+        typedef T Type;
 
-        /// empty constructor
-        constexpr Vector() : buf(nullptr), nItems(0) {}
-
-        /// variadic template function constructor
         template <class... Ts>
         Vector(Ts... items)
-        : buf(new T[sizeof...(items)] {items... })
+        : buffer(new T[sizeof...(items)] { items... })
         , nItems(sizeof...(items)) {}
-
-        /// copy constructor
-        Vector(const Vector& v) : buf(new T[v.nItems]), nItems(v.nItems) {
-            copy(v.begin(), v.end(), buf);
-        }
-
-        /// move constructor
-        Vector(Vector&& v) noexcept : buf(move(v.buf)), nItems(move(v.nItems)) {
-            v.buf = nullptr;
-            v.nItems = 0;
-        }
-
-        /// copy assignment
-        Vector& operator=(const Vector& other) {
-            if (this == &other) return *this;
-            nItems = other.nItems;
-            buf = new T[nItems];
-            copy(other.begin(), other.end(), buf);
-            return *this;
-        }
-
-        /// move assignment
-        Vector& operator=(Vector&& other) noexcept {
-            buf = move(other.buf);
-            nItems = move(other.nItems);
-            other.buf = nullptr;
-            other.nItems = 0;
-            return *this;
-        }
+        constexpr Vector() : buffer(nullptr), nItems(0) {}
 
         virtual ~Vector() {
-            delete [] buf;
-            buf = nullptr;
+            delete [] buffer;
+            buffer = nullptr;
             nItems = 0;
         }
 
         [[nodiscard]] size_t len() const { return nItems; }
 
-        iterator data()   { return buf; }
-        iterator begin()  { return buf; }
-        iterator end()    { return buf + nItems; }
-        reference front() { return buf[0]; }
-        reference back()  { return buf[nItems - 1]; }
+        T* data()   { return buffer; }
+        T* begin()  { return buffer; }
+        T* end()    { return buffer + nItems; }
+        T& front()  { return buffer[0]; }
+        T& back()   { return buffer[nItems - 1]; }
 
-        const_iterator data()   const { return buf; }
-        const_iterator begin()  const { return buf; }
-        const_iterator end()    const { return buf + nItems; }
-        const_reference front() const { return buf[0]; }
-        const_reference back()  const { return buf[nItems - 1]; }
+        const T* data()     const { return buffer; }
+        const T* begin()    const { return buffer; }
+        const T* end()      const { return buffer + nItems; }
+        const T& front()    const { return buffer[0]; }
+        const T& back()     const { return buffer[nItems - 1]; }
 
-        /// get i-th item by dereference
-        /// @warning make sure n items is not 0
-        reference operator[](int i) {
-            if (len() == 0) return *static_cast<T*>(nullptr);
-            if (i < 0) i = len() + i; // allowing negative index
-            return buf[i];
+        T& operator [](size_t i) { return buffer[i]; }
+        const T& operator [](size_t i) const { return buffer[i]; }
+        explicit operator bool () { return buffer != nullptr; }
+
+        Vector operator + (const Vector& other) const {
+            return { newInsert(other), nItems + other.nItems };
         }
-
-        /// get i-th item by dereference
-        /// @warning make sure n items is not 0
-        const_reference operator[](int i) const {
-            if (len() == 0) return *static_cast<T*>(nullptr);
-            if (i < 0) i = len() + i; // allowing negative index
-            return buf[i];
+        Vector operator + (const T& other) const {
+            return { newInsert(other), nItems + 1 };
         }
-
-        explicit operator bool() { return buf != nullptr; }
-
-        Vector operator+(const Vector& other) const { return {insert_(other), nItems + other.nItems }; }
-        Vector operator+(const T& other) const { return {insert_(other), nItems + 1 }; }
 
         void append(const Vector& other) {
-            auto temp = insert_(other);
-            delete [] buf;
-            buf = temp;
+            auto temp = newInsert(other);
+            delete [] buffer;
+            buffer = temp;
             nItems += other.nItems;
         }
         void append(const T& other) {
-            auto temp = insert_(other);
-            delete [] buf;
-            buf = temp;
+            auto temp = newInsert(other);
+            delete [] buffer;
+            buffer = temp;
             nItems++;
         }
 
         void remove(size_t index) {
-            if (len() == 0) return;
-            if (index >= len()) return;
+            if (index >= this->len()) return;
 
-            auto newBuffer = new T[len() - 1];
+            auto buf = new T[this->len() - 1];
             size_t i = 0;
             for (auto& item : *this) {
                 if (i == index) continue;
-                newBuffer[i++] = item;
+                buf[i++] = item;
             }
-            delete [] buf;
-            buf = newBuffer;
+
+            delete [] buffer;
+            buffer = buf;
             --nItems;
         }
 
@@ -151,10 +105,9 @@ namespace Project::etl {
         }
     };
 
-    /// create vector with variadic template function, type is deduced
-    template <typename T, typename... U> Vector<enable_if_t<(is_same_v<T, U> && ...), T>>
+    /// create vector with variadic template function, Type is deduced
+    template<typename T, typename... U> Vector<enable_if_t<(is_same_v<T, U> && ...), T>>
     vector(const T& t, const U&...u) { return Vector<T>{t, u...}; }
-
 }
 
 #endif //ETL_VECTOR_H

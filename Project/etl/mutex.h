@@ -3,38 +3,16 @@
 
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
-#include "etl/utility.h"
 
 namespace Project::etl {
 
     /// FreeRTOS mutex
     /// @note requires cmsis os v2
     class Mutex {
-        StaticSemaphore_t controlBlock;
+        StaticSemaphore_t controlBlock = {};
     public:
-        osMutexId_t id;
-
-        /// empty constructor
-        constexpr Mutex() : controlBlock{}, id(nullptr) {}
-
-        /// disable copy constructor
-        Mutex(const Mutex&) = delete;
-
-        /// disable copy assignment
-        Mutex& operator=(const Mutex&) = delete;
-
-        /// move constructor
-        constexpr Mutex(Mutex&& m)
-        : controlBlock(move(m.controlBlock))
-        , id(m.id ? &controlBlock : nullptr) { m.id = nullptr; }
-
-        /// move assignment
-        constexpr Mutex& operator=(Mutex&& other) noexcept {
-            controlBlock = move(other.controlBlock);
-            id = other.id ? &controlBlock : nullptr;
-            other.id = nullptr;
-            return *this;
-        }
+        osMutexId_t id = nullptr;
+        constexpr Mutex() = default;
 
         /// initiate mutex
         /// @param name string name, default null
@@ -70,7 +48,6 @@ namespace Project::etl {
     /// lock mutex when entering a scope and unlock when exiting
     struct MutexScope {
         osMutexId_t mutex;
-
         explicit MutexScope(Mutex& mutex, uint32_t timeout = osWaitForever) : mutex(mutex.id) {
             mutex.lock(timeout);
         }
