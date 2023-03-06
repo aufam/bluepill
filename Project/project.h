@@ -2,16 +2,14 @@
 #define PROJECT_H
 
 #ifdef __cplusplus
-#include "etl/all.h"
-
-#include "oled/oled.h"
-
 #include "periph/adc.h"
 #include "periph/can.h"
 #include "periph/encoder.h"
 #include "periph/exti.h"
 #include "periph/flash.h"
 #include "periph/gpio.h"
+#include "periph/i2c.h"
+#include "periph/input_capture.h"
 #include "periph/pwm.h"
 #include "periph/rtc.h"
 #include "periph/uart.h"

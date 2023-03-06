@@ -1,14 +1,12 @@
 #include "project.h"
+#include "etl/all.h"
+#include "oled/oled.h"
+#include "etl/python_keywords.h"
 
 using namespace Project;
 using namespace Project::Periph;
 using namespace Project::etl;
 using namespace Project::etl::literals;
-
-/// override operator new with malloc from @p heap_4.c
-void *operator new(size_t size) { return pvPortMalloc(size); }
-/// override operator delete with free from @p heap_4.c
-void operator delete(void *ptr) { vPortFree(ptr); }
 
 enum { EVENT_CLEAR, EVENT_BT_UP, EVENT_BT_DOWN, EVENT_BT_RIGHT, EVENT_BT_LEFT, EVENT_BT_ROT, EVENT_ROT_UP, EVENT_ROT_DOWN };
 auto event = Queue<int, 1> {};
@@ -30,8 +28,8 @@ void mainThread(void *) {
 
     oled << "Hello World!\n";
     for (;;) {
-        int evt = event.pop(osWaitForever);
-        oled << f("%d", evt);
+        // wait event and print it to oled
+        oled << f("%d", event.pop(osWaitForever));
     }
 }
 

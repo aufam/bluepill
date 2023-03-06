@@ -15,7 +15,7 @@ namespace Project::etl {
         static constexpr bool is_complex32 = is_same_v<T, int32_t>;
         static constexpr bool is_complex16 = is_same_v<T, int16_t>;
         static constexpr bool is_complex8  = is_same_v<T, int8_t >;
-        static_assert(is_complex32 || is_complex16 || is_complex8, "Type has to be signed integral");
+        static_assert(is_complex32 || is_complex16 || is_complex8, "type has to be signed integral");
 
         T real, imag;
         constexpr explicit complex(int32_t real, int32_t imag = 0)  : real(real), imag(imag) {}
@@ -203,7 +203,9 @@ namespace Project::etl {
     }
 
     namespace literals {
-        constexpr auto operator ""_i(long double val) { return complex8 { 0.f, static_cast<float>(std::abs(val)) }; }
+        constexpr auto operator ""_i(long double val) {
+            return complex32 { 0.f, static_cast<float>(std::abs(val)) };
+        }
     }
 }
 

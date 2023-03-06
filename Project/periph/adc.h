@@ -10,7 +10,7 @@ namespace Project::Periph {
     /// @note requirements: DMA circular, temperature sensor channel, vref channel
     struct ADC {
         /// callback function class
-        using CompleteCallback = etl::Function<void()>;
+        using CompleteCallback = etl::Function<void(), void*>;
 
         enum {
             INDEX_TEMP   = 0, ///< index of internal temperature sensor

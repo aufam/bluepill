@@ -16,20 +16,26 @@
 #include "etl/algorithm.h"
 
 namespace Project::etl {
-    template <size_t N, size_t M> struct SplitString;
+    template <size_t N, size_t M> class SplitString;
 
     /// simple string class with c-style formatter
     template <size_t N = ETL_STRING_DEFAULT_SIZE>
     class String {
-        char str[N] = {};
+        char str[N];
     public:
         static_assert(N > 0, "String size can't be zero");
 
-        /// construct empty string
-        constexpr String() = default;
+        typedef char value_type;
+        typedef char* iterator;
+        typedef const char* const_iterator;
+        typedef char& reference;
+        typedef const char& const_reference;
+
+        /// empty constructor
+        constexpr String() : str{} {}
 
         /// C-style format constructor
-        String(const char* fmt, ...) {
+        String(const char* fmt, ...) : str{} {
             va_list vl;
             va_start(vl, fmt);
             vsnprintf(str, N, fmt, vl);
@@ -37,10 +43,35 @@ namespace Project::etl {
             str[N - 1] = '\0';
         }
 
-        /// construct from @ref other string
+        /// copy constructor
         template <size_t M>
-        constexpr String(String<M> other) {
+        constexpr String(const String<M>& other) : str{} {
             *this = other;
+        }
+
+        /// copy assignment
+        template <size_t M>
+        constexpr String& operator=(const String<M>& other) {
+            auto n = min(N, M);
+            copy(other.begin(), other.begin() + n, str);
+            str[N - 1] = '\0';
+            return *this;
+        }
+
+        /// move constructor
+        template <size_t M>
+        constexpr String(String<M>&& other) noexcept : str{} {
+            *this = move(other);
+        }
+
+        /// move assignment
+        template <size_t M>
+        constexpr String& operator=(String<M>&& other) noexcept {
+            auto n = min(N, M);
+            move(other.begin(), other.begin() + n, str);
+            str[N - 1] = '\0';
+            other.clear();
+            return *this;
         }
 
         /// size in bytes
@@ -55,32 +86,23 @@ namespace Project::etl {
         /// set all characters to 0
         constexpr void clear() { fill(str, '\0'); }
 
-        constexpr char* data()    { return str; }
-        constexpr char* begin()   { return str; }
-        constexpr char* end()     { return str + len(); }
-        constexpr char& front()   { return str[0]; }
-        constexpr char& back()    { size_t l = len(); return str[l ? l - 1 : 0]; }
+        constexpr iterator data()   { return str; }
+        constexpr iterator begin()  { return str; }
+        constexpr iterator end()    { return str + len(); }
+        constexpr reference front() { return str[0]; }
+        constexpr reference back()  { auto l = len(); return str[l ? l - 1 : 0]; }
 
-        [[nodiscard]] constexpr const char* data()    const { return str; }
-        [[nodiscard]] constexpr const char* begin()   const { return str; }
-        [[nodiscard]] constexpr const char* end()     const { return str + len(); }
-        [[nodiscard]] constexpr const char& front()   const { return str[0]; }
-        [[nodiscard]] constexpr const char& back()    const { size_t l = len(); return str[l ? l - 1 : 0]; }
+        [[nodiscard]] constexpr const_iterator data()   const { return str; }
+        [[nodiscard]] constexpr const_iterator begin()  const { return str; }
+        [[nodiscard]] constexpr const_iterator end()    const { return str + len(); }
+        [[nodiscard]] constexpr const_reference front() const { return str[0]; }
+        [[nodiscard]] constexpr const_reference back()  const { auto l = len(); return str[l ? l - 1 : 0]; }
 
-        constexpr char& operator [](size_t i) { return str[i % N]; }
-        constexpr const char& operator [](size_t i) const { return str[i % N]; }
+        constexpr reference operator [](size_t i) { return str[i % N]; }
+        constexpr const_reference operator [](size_t i) const { return str[i % N]; }
 
         /// return true if first character is not '\0'
         constexpr explicit operator bool() const { return str[0] != '\0'; }
-
-        /// assign from other string
-        template <size_t M>
-        constexpr String& operator=(const String<M>& other) {
-            auto n = min(N, M);
-            copy(other.begin(), other.begin() + n, str);
-            str[N - 1] = '\0';
-            return *this;
-        }
 
         /// assign from other const char*
         constexpr String& operator=(const char* other) {
@@ -175,21 +197,35 @@ namespace Project::etl {
         bool isContaining(const char* other) const { return isContaining(other, strlen(other)); }
 
         template <size_t M = ETL_SHORT_STRING_DEFAULT_SIZE>
-        SplitString<N, M> split(const char* separator = " ") {
-            return SplitString<N, M>(str, separator);
-        }
+        auto split(const char* separator = " ") { return SplitString<N, M>(str, separator); }
     };
 
     /// create string, size is deduced
-    template <size_t N> constexpr String<N>
+    template <size_t N> constexpr auto
     string(const char (&text)[N]) {
         String<N> res;
         copy(text, text + N, res.data());
         return res;
     }
 
+    /// cast from const char*
+    template <size_t N> constexpr const String<N>&
+    string_cast(const char* text) { return *reinterpret_cast<const String<N>*>(text); }
+
+    /// cast from char*
+    template <size_t N> constexpr String<N>&
+    string_cast(char* text) { return *reinterpret_cast<String<N>*>(text); }
+
+    /// cast from const char[N]
+    template <size_t N> constexpr const String<N>&
+    string_cast(const char (&text)[N]) { return *reinterpret_cast<const String<N>*>(&text); }
+
+    /// cast from char[N]
+    template <size_t N> constexpr String<N>&
+    string_cast(char (&text)[N]) { return *reinterpret_cast<String<N>*>(&text); }
+
     /// create string from 2 strings, size is s1.size() + s2.size() - 1
-    /// @warning string buffer might be unnecessarily large
+    /// @warning string buf might be unnecessarily large
     template <size_t N, size_t M> constexpr auto
     operator+(const String<N>& s1, const String<M>& s2) {
         String<N + M -1> res = s1;
@@ -197,9 +233,23 @@ namespace Project::etl {
         return res;
     }
 
+    /// swap specialization
+    template <size_t N, size_t M> constexpr void
+    swap(String<N>& s1, String<M>& s2) {
+        String<N> temp(move(s1));
+        s1 = move(s2);
+        s2 = move(temp);
+    }
+
+    /// swap_element specialization
+    template <size_t N, size_t M> constexpr void
+    swap_element(String<N>& s1, String<M>& s2) {
+        swap(s1, s2);
+    }
+
     /// simple split string using strtok
-    /// @tparam N string buffer size, default = ETL_STRING_DEFAULT_SIZE
-    /// @tparam M argv buffer size, default = ETL_SHORT_STRING_DEFAULT_SIZE
+    /// @tparam N string buf size, default = ETL_STRING_DEFAULT_SIZE
+    /// @tparam M argv buf size, default = ETL_SHORT_STRING_DEFAULT_SIZE
     template <size_t N = ETL_STRING_DEFAULT_SIZE, size_t M = ETL_SHORT_STRING_DEFAULT_SIZE>
     class SplitString {
         size_t argc = 0;    ///< number of arguments
@@ -217,28 +267,26 @@ namespace Project::etl {
         /// construct from String
         SplitString(String<N>& text, const char* separator = " ") : SplitString(text.data(), separator) {}
 
-        char* operator [](size_t index) {
-            return index < argc ? argv[index] : nullptr;
-        }
+        char* operator [](size_t index) { return index < argc ? argv[index] : nullptr; }
 
         size_t len()  { return argc; }
 
-        char* begin() { return argv[0]; }
-        char* end()   { return argv[argc]; }
+        char** begin() { return &argv[0]; }
+        char** end()   { return &argv[argc]; }
 
         char* front() { return argv[0]; }
         char* back()  { return argv[argc - 1]; }
     };
+}
 
-    namespace literals {
-        constexpr auto operator ""s(const char* text, size_t n) {
-            String<ETL_SHORT_STRING_DEFAULT_SIZE> s;
-            copy(text, text + n, s.data());
-            s[ETL_SHORT_STRING_DEFAULT_SIZE - 1] = '\0';
-            return s;
-        }
+namespace Project::etl::literals {
+
+    constexpr auto operator ""s(const char* text, size_t n) {
+        String<ETL_SHORT_STRING_DEFAULT_SIZE> s;
+        copy(text, text + n, s.data());
+        s[ETL_SHORT_STRING_DEFAULT_SIZE - 1] = '\0';
+        return s;
     }
-
 }
 
 #endif //ETL_STRING_H

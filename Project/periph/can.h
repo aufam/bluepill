@@ -31,7 +31,7 @@ namespace Project::Periph {
         };
 
         /// callback function struct
-        using Callback = etl::Function<void(Message &)>;
+        using Callback = etl::Function<void(Message &), void*>;
 
         CAN_HandleTypeDef &hcan;
         CAN_FilterTypeDef canFilter = {};

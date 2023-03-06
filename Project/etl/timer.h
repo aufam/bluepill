@@ -3,18 +3,38 @@
 
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
+#include "etl/utility.h"
 
 namespace Project::etl {
 
     /// FreeRTOS timer
     /// @note requires cmsis os v2
     class Timer {
-        StaticTimer_t controlBlock = {};
+        StaticTimer_t controlBlock;
     public:
-        osTimerId_t id = nullptr;
-        constexpr Timer() = default;
+        osTimerId_t id;
 
         typedef void (*Function) (void *arg);
+
+        /// empty constructor
+        constexpr Timer() : controlBlock{}, id(nullptr) {}
+
+        /// disable copy constructor
+        Timer(const Timer&) = delete;
+
+        /// disable copy assignment
+        Timer& operator=(const Timer&) = delete;
+
+        /// move constructor
+        constexpr Timer(Timer&& t) noexcept
+        : controlBlock(move(t.controlBlock))
+        , id(t.id ? &controlBlock : nullptr) { t.id = nullptr; }
+
+        constexpr Timer& operator=(Timer&& other) noexcept {
+            controlBlock = move(other.controlBlock);
+            id = other.id ? &controlBlock : nullptr;
+            return *this;
+        }
 
         /// initiate timer
         /// @retval @ref osOK: success, @ref osError: failed (already initiated)

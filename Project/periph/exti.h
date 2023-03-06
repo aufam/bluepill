@@ -9,7 +9,7 @@ namespace Project::Periph {
     /// external interrupt class
     struct Exti {
         /// callback function class
-        using Callback = etl::Function<void()>;
+        using Callback = etl::Function<void(), void*>;
 
         Callback callbacks[16] = {}; ///< list of callback function of every GPIO pin
         static const uint32_t debounceDelay = 250; ///< button debounce delay in ticks

@@ -1,13 +1,7 @@
-.vscode/
-.idea/
-build/
-backup/
-cmake-build-debug/
-build-release/
-Build/
-Release/
+.*
+/*[Bb]uild*
+/*[Rr]elease*
+
+/backup
 CMakeLists_template.txt
 
-.cproject
-.mxproject
-.project
