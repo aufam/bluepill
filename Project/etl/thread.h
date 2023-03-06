@@ -3,6 +3,7 @@
 
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
+#include "etl/array.h"
 
 namespace Project::etl {
 
@@ -11,13 +12,35 @@ namespace Project::etl {
     /// @note requires cmsis os v2
     template <size_t N = configMINIMAL_STACK_SIZE>
     class Thread {
-        uint32_t buffer[N];
+        Array<uint32_t, N> buffer;
         StaticTask_t controlBlock;
     public:
         osThreadId_t id;
-        constexpr Thread() : id(nullptr), buffer{}, controlBlock{} {}
 
         typedef void (* Function) (void* );
+
+        /// empty constructor
+        constexpr Thread() : buffer{}, controlBlock{}, id(nullptr) {}
+
+        /// disable copy constructor
+        Thread(const Thread&) = delete;
+
+        /// disable copy assignment
+        Thread& operator=(const Thread&) = delete;
+
+        /// move constructor
+        constexpr Thread(Thread&& t) noexcept
+        : buffer(move(t.buffer))
+        , controlBlock(move(t.controlBlock))
+        , id(t.id ? &controlBlock : nullptr) { t.id = nullptr; }
+
+        /// move assignment
+        constexpr Thread& operator=(Thread&& other) noexcept {
+            buffer = move(other.buffer);
+            controlBlock = move(other.controlBlock);
+            id = other.id ? &controlBlock : nullptr;
+            return *this;
+        }
 
         /// initiate thread
         /// @retval @ref osOK: success, @ref osError: failed (already initiated)
@@ -31,7 +54,7 @@ namespace Project::etl {
             attr.name = name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
-            attr.stack_mem = buffer;
+            attr.stack_mem = &buffer;
             attr.stack_size = sizeof(buffer); // in byte
             attr.priority = prio;
             id = osThreadNew(fn, arg, &attr);

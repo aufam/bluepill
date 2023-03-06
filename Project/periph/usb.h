@@ -11,7 +11,7 @@ namespace Project::Periph {
     /// USB peripheral class
     struct USBD {
         /// callback function class
-        using Callback = etl::Function<void(const uint8_t*, size_t)>;
+        using Callback = etl::Function<void(const uint8_t*, size_t), void*>;
         using Buffer = etl::Array<uint8_t, APP_RX_DATA_SIZE>; ///< USB rx buffer type definition
 
         Callback rxCallback = {};

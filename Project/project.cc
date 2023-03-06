@@ -1,15 +1,12 @@
 #include "project.h"
+#include "oled/oled.h"
+#include "etl/all.h"
 #include "etl/python_keywords.h"
 
 using namespace Project;
 using namespace Project::Periph;
 using namespace Project::etl;
 using namespace Project::etl::literals;
-
-/// override operator new with malloc from @p heap_4.c
-void *operator new(size_t size) { return pvPortMalloc(size); }
-/// override operator delete with free from @p heap_4.c
-void operator delete(void *ptr) { vPortFree(ptr); }
 
 enum { EVENT_NONE, EVENT_BT_ROT, EVENT_ROT_CW, EVENT_ROT_CCW };
 auto event = Queue<int, 1> {};
@@ -50,7 +47,7 @@ struct Option {
 const Array<Option, 3> options = {
         Option {
             []() { return f("PWM is %s", pwmIsOn ? "on" : "off"); },
-            [](int val) { }
+            [](int) { }
             },
         Option {
             []{ return  f("Freq = %d", frequency); },
@@ -73,7 +70,7 @@ void mainThread(void *) {
     encoder.setIncrementCB([](auto) { event << EVENT_ROT_CW; });
     encoder.setDecrementCB([](auto) { event << EVENT_ROT_CCW; });
 
-    for (auto [optionIndex, editMode] = pair(0u, false);;) {
+    for (auto [optionIndex, editMode] = pair(0, false);;) {
         oled.setCursor(0, 0);
         for (auto [i, option] in enumerate(options)) {
             option.print(optionIndex == i);
@@ -103,7 +100,7 @@ void mainThread(void *) {
             case EVENT_ROT_CCW:
                 if (not editMode) {
                     optionIndex += evt is EVENT_ROT_CW ? 1 : -1;
-                    optionIndex = clamp(optionIndex, 0u, options.len() - 1);
+                    optionIndex = clamp(optionIndex, 0, (int) options.len() - 1);
                     break;
                 }
                 options[optionIndex].add(evt is EVENT_ROT_CW ? 1 : -1);
