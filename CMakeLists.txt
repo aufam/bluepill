@@ -74,18 +74,15 @@ include_directories(
         Middlewares/Third_Party/FreeRTOS/Source/include
         Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
         Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3
-        Middlewares/ST/STM32_USB_Device_Library/Core/Inc
-        Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
         Drivers/CMSIS/Device/ST/STM32F1xx/Include
         Drivers/CMSIS/Include
         Project)
 
 # source files
 file(GLOB_RECURSE SOURCES
-        "Core/*.*"
-        "Middlewares/*.*"
-        "Drivers/*.*"
-        "USB_DEVICE/*.*"
+        Core/*.*
+        Middlewares/*.*
+        Drivers/*.*
         Project/*.*)
 
 # build elf
