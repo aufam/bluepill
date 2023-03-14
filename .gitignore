@@ -1,7 +1,8 @@
 .*
 /*[Bb]uild*
 /*[Rr]elease*
+/*[Dd]ebug*
+/*[Bb]ackup*
 
-/backup
 CMakeLists_template.txt
-
+compile_commands.json
