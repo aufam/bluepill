@@ -13,7 +13,6 @@
 #include "periph/pwm.h"
 #include "periph/rtc.h"
 #include "periph/uart.h"
-#include "periph/usb.h"
 
 extern "C" {
 #endif

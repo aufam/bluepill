@@ -1,8 +1,9 @@
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.10)
 
 # specify cross-compilers and tools
+set(CMAKE_SYSTEM_PROCESSOR ARM)
 set(CMAKE_C_COMPILER arm-none-eabi-gcc)
 set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
 set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
@@ -57,6 +58,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register -Wno-literal-suffix")
 add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F103xB)
 add_definitions(-DUSE_PROJECT)
 
+# library
+add_link_options(-specs=nano.specs -lm -lc)
+
 # linker script
 set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F103C8TX_FLASH.ld)
 set(MAP ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
@@ -64,31 +68,16 @@ add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${MAP},--script=${LI
 
 # include
 include_directories(
-        Core/Inc
-        USB_DEVICE/App
-        USB_DEVICE/Target
-        Drivers/STM32F1xx_HAL_Driver/Inc
-        Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
-        Drivers/CMSIS/Device/ST/STM32F1xx/Include Drivers/CMSIS/Include
-        Middlewares/Third_Party/FreeRTOS/Source/include
-        Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
-        Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3
-        Middlewares/ST/STM32_USB_Device_Library/Core/Inc
-        Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
+        Core/Inc USB_DEVICE/App USB_DEVICE/Target Drivers/STM32F1xx_HAL_Driver/Inc Drivers/STM32F1xx_HAL_Driver/Inc/Legacy Middlewares/Third_Party/FreeRTOS/Source/include Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3 Middlewares/ST/STM32_USB_Device_Library/Core/Inc Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc Drivers/CMSIS/Device/ST/STM32F1xx/Include Drivers/CMSIS/Include
         Project)
 
 # source files
 file(GLOB_RECURSE SOURCES
-        Core/*.*
-        Middlewares/*.*
-        Drivers/*.*
-        USB_DEVICE/*.*
-        Project/*.*
-        )
+        "Core/*.*" "Middlewares/*.*" "Drivers/*.*" "USB_DEVICE/*.*"
+        Project/*.*)
 
 # build elf
 add_executable(${PROJECT_NAME}.elf ${SOURCES} ${LINKER_SCRIPT})
-target_link_libraries(${PROJECT_NAME}.elf m) # add math lib
 
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
