@@ -16,7 +16,7 @@
 #include "etl/algorithm.h"
 
 namespace Project::etl {
-    template <size_t N, size_t M> class SplitString;
+    template <size_t N> class SplitString;
 
     /// simple string class with c-style formatter
     template <size_t N = ETL_STRING_DEFAULT_SIZE>
@@ -34,13 +34,17 @@ namespace Project::etl {
         /// empty constructor
         constexpr String() : str{} {}
 
-        /// C-style format constructor
-        String(const char* fmt, ...) : str{} {
-            va_list vl;
-            va_start(vl, fmt);
-            vsnprintf(str, N, fmt, vl);
-            va_end(vl);
+        /// construct from array char with different size 
+        template <size_t M>
+        constexpr String(const char (&text)[M]) : str{} {
+            copy(text, text + min(N, M), begin());
             str[N - 1] = '\0';
+        }
+
+        /// C-style format constructor
+        template <typename Arg, typename... Args>
+        String(const char* fmt, Arg arg, Args... args) : str{} {
+            operator()(fmt, arg, args...);
         }
 
         /// copy constructor
@@ -98,8 +102,14 @@ namespace Project::etl {
         [[nodiscard]] constexpr const_reference front() const { return str[0]; }
         [[nodiscard]] constexpr const_reference back()  const { auto l = len(); return str[l ? l - 1 : 0]; }
 
-        constexpr reference operator [](size_t i) { return str[i % N]; }
-        constexpr const_reference operator [](size_t i) const { return str[i % N]; }
+        constexpr reference operator[](int i) {
+            if (i < 0) i = len() + i;
+            return str[i];
+        }
+        constexpr const_reference operator[](int i) const {
+            if (i < 0) i = len() + i;
+            return str[i];
+        }
 
         /// return true if first character is not '\0'
         constexpr explicit operator bool() const { return str[0] != '\0'; }
@@ -197,35 +207,35 @@ namespace Project::etl {
         bool isContaining(const char* other) const { return isContaining(other, strlen(other)); }
 
         template <size_t M = ETL_SHORT_STRING_DEFAULT_SIZE>
-        auto split(const char* separator = " ") { return SplitString<N, M>(str, separator); }
+        auto split(const char* separator = " ") { return SplitString<M>(str, separator); }
     };
 
-    /// create string, size is deduced
-    template <size_t N> constexpr auto
-    string(const char (&text)[N]) {
-        String<N> res;
-        copy(text, text + N, res.data());
-        return res;
-    }
+    /// create string, size can be implicitly or explicitly specified
+    template <size_t n = 0, size_t M, size_t N = (n > 0 ? n : M)> constexpr auto
+    string(const char (&text)[M]) { return String<N> { text }; }
 
-    /// cast from const char*
-    template <size_t N> constexpr const String<N>&
-    string_cast(const char* text) { return *reinterpret_cast<const String<N>*>(text); }
+    /// create C-style formatted string, default size is ETL_STRING_DEFAULT_SIZE
+    template <size_t N = ETL_STRING_DEFAULT_SIZE, typename Arg, typename... Args> auto
+    string(const char* fmt, Arg arg, Args... args) { return String<N> { fmt, arg, args... }; }
 
-    /// cast from char*
-    template <size_t N> constexpr String<N>&
-    string_cast(char* text) { return *reinterpret_cast<String<N>*>(text); }
+    /// create empty string, default size is ETL_STRING_DEFAULT_SIZE 
+    template <size_t N = ETL_STRING_DEFAULT_SIZE> constexpr auto 
+    string() { return String<N>{}; }
 
-    /// cast from const char[N]
-    template <size_t N> constexpr const String<N>&
-    string_cast(const char (&text)[N]) { return *reinterpret_cast<const String<N>*>(&text); }
+    /// create short string, size is ETL_SHORT_STRING_DEFAULT_SIZE 
+    template <size_t N> constexpr auto 
+    short_string(const char (&text)[N]) { return string<ETL_SHORT_STRING_DEFAULT_SIZE>(text); }
 
-    /// cast from char[N]
-    template <size_t N> constexpr String<N>&
-    string_cast(char (&text)[N]) { return *reinterpret_cast<String<N>*>(&text); }
+    /// create C-style formatted string, size is ETL_SHORT_STRING_DEFAULT_SIZE
+    template <typename Arg, typename... Args> auto
+    short_string(const char* fmt, Arg arg, Args... args) { return string<ETL_SHORT_STRING_DEFAULT_SIZE>(fmt, arg, args...); }
+
+    /// create empty string, size is ETL_SHORT_STRING_DEFAULT_SIZE 
+    constexpr auto 
+    short_string() { return string<ETL_SHORT_STRING_DEFAULT_SIZE>(); }
 
     /// create string from 2 strings, size is s1.size() + s2.size() - 1
-    /// @warning string buf might be unnecessarily large
+    /// @warning string buffer might be unnecessarily large
     template <size_t N, size_t M> constexpr auto
     operator+(const String<N>& s1, const String<M>& s2) {
         String<N + M -1> res = s1;
@@ -233,12 +243,27 @@ namespace Project::etl {
         return res;
     }
 
+    /// cast reference from any pointer
+    template <size_t N, typename T> constexpr auto&
+    string_cast(T* text) { return *reinterpret_cast<conditional_t<is_const_v<T>, const String<N>*, String<N>*>>(text); }
+
+    /// cast reference from any type
+    template <typename T> constexpr auto&
+    string_cast(T& text) { return string_cast<sizeof(T)>(&text); }
+
     /// swap specialization
     template <size_t N, size_t M> constexpr void
     swap(String<N>& s1, String<M>& s2) {
-        String<N> temp(move(s1));
-        s1 = move(s2);
-        s2 = move(temp);
+        if constexpr (min(N, M) == N) {
+            String<N> temp(move(s1));
+            s1 = move(s2);
+            s2 = move(temp);
+        }
+        else {
+            String<M> temp(move(s2));
+            s2 = move(s1);
+            s1 = move(temp);
+        }
     }
 
     /// swap_element specialization
@@ -247,35 +272,64 @@ namespace Project::etl {
         swap(s1, s2);
     }
 
+    /// type traits
+    template <size_t N> struct is_string<String<N>> : true_type {};
+    template <size_t N> struct is_string<const String<N>> : true_type {};
+    template <size_t N> struct is_string<volatile String<N>> : true_type {};
+    template <size_t N> struct is_string<const volatile String<N>> : true_type {};
+
+    template <size_t N> struct is_array<String<N>> : true_type {};
+    template <size_t N> struct is_array<const String<N>> : true_type {};
+    template <size_t N> struct is_array<volatile String<N>> : true_type {};
+    template <size_t N> struct is_array<const volatile String<N>> : true_type {};
+
+    template <size_t N> struct remove_extent<String<N>> { typedef char type; };
+    template <size_t N> struct remove_extent<const String<N>> { typedef char type; };
+    template <size_t N> struct remove_extent<volatile String<N>> { typedef char type; };
+    template <size_t N> struct remove_extent<const volatile String<N>> { typedef char type; };
+
     /// simple split string using strtok
     /// @tparam N string buf size, default = ETL_STRING_DEFAULT_SIZE
     /// @tparam M argv buf size, default = ETL_SHORT_STRING_DEFAULT_SIZE
-    template <size_t N = ETL_STRING_DEFAULT_SIZE, size_t M = ETL_SHORT_STRING_DEFAULT_SIZE>
+    template <size_t N = ETL_SHORT_STRING_DEFAULT_SIZE>
     class SplitString {
-        size_t argc = 0;    ///< number of arguments
-        char* argv[M] = {}; ///< array of argument values
+        mutable size_t argc = 0;    ///< number of arguments
+        mutable char* argv[N] = {}; ///< array of argument values
 
-    public:
+    public: 
+        typedef char* value_type;
+        typedef char** iterator;
+        typedef const char** const_iterator;
+        typedef char* reference;
+        typedef const char* const_reference;
+        
         /// construct from char*
         SplitString(char* text, const char* separator = " ") {
-            for (; argc < M; argc++) {
+            for (; argc < N; argc++) {
                 argv[argc] = strtok(argc == 0 ? text : nullptr, separator);
                 if (argv[argc] == nullptr) break;
             }
         }
 
         /// construct from String
-        SplitString(String<N>& text, const char* separator = " ") : SplitString(text.data(), separator) {}
+        template <size_t M = ETL_SHORT_STRING_DEFAULT_SIZE>
+        SplitString(String<M>& text, const char* separator = " ") 
+        : SplitString(text.data(), separator) {}
 
-        char* operator [](size_t index) { return index < argc ? argv[index] : nullptr; }
+        size_t len() const { return argc; }
 
-        size_t len()  { return argc; }
+        iterator begin()  { return &argv[0]; }
+        iterator end()    { return &argv[argc]; }
+        reference front() { return argv[0]; }
+        reference back()  { return argv[argc - 1]; }
 
-        char** begin() { return &argv[0]; }
-        char** end()   { return &argv[argc]; }
+        const_iterator begin()  const { return &argv[0]; }
+        const_iterator end()    const { return &argv[argc]; }
+        const_reference front() const { return argv[0]; }
+        const_reference back()  const { return argv[argc - 1]; }
 
-        char* front() { return argv[0]; }
-        char* back()  { return argv[argc - 1]; }
+        reference operator[](size_t index) { return index < argc ? argv[index] : nullptr; }
+        const_reference operator[](size_t index) const { return index < argc ? argv[index] : nullptr; }
     };
 }
 

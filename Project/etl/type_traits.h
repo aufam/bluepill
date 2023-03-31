@@ -1,21 +1,38 @@
 #ifndef ETL_TYPE_TRAITS_H
 #define ETL_TYPE_TRAITS_H
 
+#include <cstddef>
+#include <cstdint>
+
 namespace Project::etl {
 
     /// integral constant
-    template <typename T, const T VALUE> struct integral_constant {
+    template <typename T, const T VALUE>
+    struct integral_constant {
         typedef T value_type;
         typedef integral_constant<T, VALUE> type;
         static const T value = VALUE;
     };
+    template <typename T, const T VALUE> const T integral_constant<T, VALUE>::value;
 
+    /// bool constant
     typedef integral_constant<bool, false> false_type;
     typedef integral_constant<bool, true>  true_type;
-
     template <bool B> using bool_constant = integral_constant<bool, B>;
 
-    template <typename T, const T VALUE> const T integral_constant<T, VALUE>::value;
+    /// is_lvalue_reference
+    template <typename T> struct is_lvalue_reference : false_type {};
+    template <typename T> struct is_lvalue_reference<T&> : true_type {};
+    template <typename T> inline constexpr bool is_lvalue_reference_v = is_lvalue_reference<T>::value;
+
+    /// is_rvalue_reference
+    template <typename T> struct is_rvalue_reference : false_type {};
+    template <typename T> struct is_rvalue_reference<T&&> : true_type {};
+    template <typename T> inline constexpr bool is_rvalue_reference_v = is_rvalue_reference<T>::value;
+
+    /// is_reference
+    template <typename T> struct is_reference : integral_constant<bool, is_lvalue_reference_v<T> || is_rvalue_reference_v<T>> {};
+    template <typename T> inline constexpr bool is_reference_v = is_reference<T>::value;
 
     /// remove reference
     template <typename T> struct remove_reference       { typedef T type; };
@@ -23,15 +40,20 @@ namespace Project::etl {
     template <typename T> struct remove_reference<T&&>  { typedef T type; };
     template <typename T> using remove_reference_t = typename remove_reference<T>::type;
 
+    /// is_pointer
+    template <typename T> struct is_pointer     : false_type {};
+    template <typename T> struct is_pointer<T*> : true_type {};
+    template <typename T> inline constexpr bool is_pointer_v = is_pointer<T>::value;
+
     /// remove_pointer
-    template <typename T> struct remove_pointer { typedef T type; };
-    template <typename T> struct remove_pointer<T*> { typedef T type; };
-    template <typename T> struct remove_pointer<const T*> { typedef const T type; };
-    template <typename T> struct remove_pointer<volatile T*> { typedef volatile T type; };
-    template <typename T> struct remove_pointer<const volatile T*> { typedef const volatile T type; };
-    template <typename T> struct remove_pointer<T* const> { typedef T type; };
-    template <typename T> struct remove_pointer<const T* const> { typedef const T type; };
-    template <typename T> struct remove_pointer<volatile T* const> { typedef volatile T type; };
+    template <typename T> struct remove_pointer                          { typedef T type; };
+    template <typename T> struct remove_pointer<T*>                      { typedef T type; };
+    template <typename T> struct remove_pointer<const T*>                { typedef const T type; };
+    template <typename T> struct remove_pointer<volatile T*>             { typedef volatile T type; };
+    template <typename T> struct remove_pointer<const volatile T*>       { typedef const volatile T type; };
+    template <typename T> struct remove_pointer<T* const>                { typedef T type; };
+    template <typename T> struct remove_pointer<const T* const>          { typedef const T type; };
+    template <typename T> struct remove_pointer<volatile T* const>       { typedef volatile T type; };
     template <typename T> struct remove_pointer<const volatile T* const> { typedef const volatile T type; };
     template <typename T> using remove_pointer_t = typename remove_pointer<T>::type;
 
@@ -72,21 +94,15 @@ namespace Project::etl {
     template <typename T> using add_volatile_t = typename add_volatile<T>::type;
 
     /// remove_const_volatile
-    template <typename T> struct remove_const_volatile {
-        typedef typename remove_volatile<typename remove_const<T>::type>::type type;
-    };
+    template <typename T> struct remove_const_volatile { typedef remove_volatile_t<remove_const_t<T>> type; };
     template <typename T> using remove_const_volatile_t = typename remove_const_volatile<T>::type;
 
     /// add_const_volatile
-    template <typename T> struct add_const_volatile {
-        typedef typename add_volatile<typename add_const<T>::type>::type type;
-    };
+    template <typename T> struct add_const_volatile { typedef add_volatile_t<add_const_t<T>> type; };
     template <typename T> using add_const_volatile_t = typename add_const_volatile<T>::type;
 
     /// remove_const_volatile_ref
-    template <typename T> struct remove_const_volatile_ref {
-        typedef typename remove_const_volatile<typename remove_reference<T>::type>::type type;
-    };
+    template <typename T> struct remove_const_volatile_ref { typedef remove_const_volatile_t<remove_reference_t<T>> type; };
     template <typename T> using remove_const_volatile_ref_t = typename remove_const_volatile_ref<T>::type;
 
     /// enable_if
@@ -228,36 +244,83 @@ namespace Project::etl {
     template <typename T> struct is_compound : bool_constant<! is_fundamental<T>::value> {};
     template <typename T> inline static const bool is_compound_v = is_compound<T>::value;
 
+    /// is_trivially_copyable
+    template <typename T>
+    struct is_trivially_copyable : public bool_constant<is_arithmetic_v<T> || is_pointer_v<T>> {};
+    template<typename T> inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
+
     /// is_array
     template <typename T> struct is_array : false_type {};
     template <typename T> struct is_array<T[]> : true_type {};
     template <typename T, size_t N> struct is_array<T[N]> : true_type {};
     template <typename T> inline constexpr bool is_array_v = is_array<T>::value;
 
-    /// is_pointer
-    template <typename T> struct is_pointer : false_type {};
-    template <typename T> struct is_pointer<T*> : true_type {};
-    template <typename T> inline constexpr bool is_pointer_v = is_pointer<T>::value;
+    /// is_string
+    template <typename T> struct is_string : false_type {};
+    template <> struct is_string<char[]> : true_type {};
+    template <size_t N> struct is_string<char[N]> : true_type {};
+    template <typename T> inline constexpr bool is_string_v = is_string<T>::value;
 
-    /// is_reference
-    template <typename T> struct is_lvalue_reference : false_type {};
-    template <typename T> struct is_lvalue_reference<T&> : true_type {};
-    template <typename T> inline constexpr bool is_lvalue_reference_v = is_lvalue_reference<T>::value;
+    /// is_function
+    template <typename T> struct is_function : false_type {};
+    template <typename R, typename... Args> struct is_function<R(Args...)> : true_type {};
+    template <typename T> inline constexpr bool is_function_v = is_function<T>::value;
 
-    template <typename T> struct is_rvalue_reference : false_type {};
-    template <typename T> struct is_rvalue_reference<T&&> : true_type {};
-    template <typename T> inline constexpr bool is_rvalue_reference_v = is_rvalue_reference<T>::value;
-
-    template<typename T> struct is_reference : integral_constant<bool, is_lvalue_reference_v<T> || is_rvalue_reference_v<T>> {};
-    template <typename T> inline constexpr bool is_reference_v = is_reference<T>::value;
-
-    /// is_trivially_copyable
+    /// is_function_pointer
+    template <typename T> struct is_function_pointer : false_type {};
+    template <typename R, typename... Args> struct is_function_pointer<R(*)(Args...)> : true_type {};
+    template <typename T> inline constexpr bool is_function_pointer_v = is_function_pointer<T>::value;
+   
+    /// is_functor
     template <typename T>
-    struct is_trivially_copyable : public bool_constant<is_arithmetic_v<T> || is_pointer_v<T>> {};
-    template<typename T> inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
+    struct is_functor {
+        template <typename U> static auto test(U* p) -> decltype(&U::operator(), void(), true_type());
+        template <typename U> static auto test(...) -> false_type;
+        static constexpr bool value = decltype(test<T>(nullptr))::value;
+    };
+    template <typename T> inline constexpr bool is_functor_v = is_functor<T>::value;
 
-    /// is_empty
-    template<typename T> struct is_empty : public integral_constant<bool, __is_empty(T)> {};
+    /// remove_extent
+    template <typename T> struct remove_extent { typedef T type; };
+    template <typename T> struct remove_extent<T[]> { typedef T type; };
+    template <typename T, size_t N> struct remove_extent<T[N]> { typedef T type; };
+    template <typename T> using remove_extent_t = typename remove_extent<T>::type;
+
+    /// decay
+    template <typename T>
+    struct decay {
+        typedef remove_reference_t<T> U;
+        typedef conditional_t<etl::is_array_v<U>, remove_extent_t<U>*, remove_const_volatile_t<U>> type;
+    };
+    template <typename T> using decay_t = typename decay<T>::type;
+
+    /// integer sequence
+    template<typename T, T... i>
+    struct integer_sequence {
+        typedef T value_type;
+        static constexpr size_t size() noexcept { return sizeof...(i); }
+    };
+
+    template <typename T, T Begin, T End, T... Is>
+    struct make_index_sequence_helper {
+        using type = typename make_index_sequence_helper<T, Begin, End-1, End-1, Is...>::type;
+    };
+
+    template <typename T, T Begin, T... Is>
+    struct make_index_sequence_helper<T, Begin, Begin, Is...> {
+        using type = integer_sequence<size_t, Is...>;
+    };
+
+    template <size_t... i>
+    using index_sequence = integer_sequence<size_t, i...>;
+
+    template <size_t Begin, size_t End>
+    using make_range_sequence = typename make_index_sequence_helper<size_t, Begin, End>::type;
+
+    template <size_t N>
+    using make_index_sequence = typename make_index_sequence_helper<size_t, 0, N>::type;
+
+    template <typename... T> using index_sequence_for = make_index_sequence<sizeof...(T)>;
 }
 
 #endif //ETL_TYPE_TRAITS_H

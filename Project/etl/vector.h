@@ -2,6 +2,7 @@
 #define ETL_VECTOR_H
 
 #include "etl/algorithm.h"
+#include <cstddef>
 
 namespace Project::etl {
 
@@ -57,6 +58,7 @@ namespace Project::etl {
         /// copy assignment
         Vector& operator=(const Vector& other) {
             if (this == &other) return *this;
+            delete [] buf;
             nItems = other.nItems;
             buf = new T[nItems];
             copy(other.begin(), other.end(), buf);
@@ -126,21 +128,6 @@ namespace Project::etl {
             nItems++;
         }
 
-        void remove(size_t index) {
-            if (len() == 0) return;
-            if (index >= len()) return;
-
-            auto newBuffer = new T[len() - 1];
-            size_t i = 0;
-            for (auto& item : *this) {
-                if (i == index) continue;
-                newBuffer[i++] = item;
-            }
-            delete [] buf;
-            buf = newBuffer;
-            --nItems;
-        }
-
         Vector& operator+=(const Vector& other) {
             append(other);
             return *this;
@@ -149,6 +136,31 @@ namespace Project::etl {
             append(other);
             return *this;
         }
+
+        void remove(int index) {
+            if (len() == 0) return;
+            if (index < 0) index = len() + index; // allowing negative index
+            if (index < 0 || size_t(index) >= len()) return; // out of range
+        
+            auto newBuffer = new T[len() - 1];
+            int i = 0;
+            for (auto& item : *this) {
+                if (i == index) continue;
+                newBuffer[i++] = item;
+            }
+
+            delete [] buf;
+            buf = newBuffer;
+            --nItems;
+        }
+
+        /// slice operator
+        Iter<iterator> operator()(int start, int stop, int step = 1)
+        { return start < stop ? iter(&operator[](start), &operator[](stop)) : iter(begin(), begin()); }
+
+        /// slice operator
+        Iter<const_iterator>operator()(int start, int stop, int step = 1) const
+        { return start < stop ? iter(&operator[](start), &operator[](stop)) : iter(begin(), begin()); }
 
         template <class Container>
         bool operator==(const Container& other) const { return compare_all(*this, other); }
@@ -161,6 +173,22 @@ namespace Project::etl {
     template <typename T, typename... U> Vector<enable_if_t<(is_same_v<T, U> && ...), T>>
     vector(const T& t, const U&...u) { return Vector<T>{t, u...}; }
 
+    /// create empty vector
+    template <typename T> Vector<T> constexpr
+    vector() { return Vector<T>{}; }
+
+    /// type traits
+    template <typename T> struct is_vector : false_type {};
+    template <typename T> struct is_vector<Vector<T>> : true_type {};
+    template <typename T> struct is_vector<const Vector<T>> : true_type {};
+    template <typename T> struct is_vector<volatile Vector<T>> : true_type {};
+    template <typename T> struct is_vector<const volatile Vector<T>> : true_type {};
+    template <typename T> inline constexpr bool is_vector_v = is_vector<T>::value;
+
+    template <typename T> struct remove_extent<Vector<T>> { typedef T type; };
+    template <typename T> struct remove_extent<const Vector<T>> { typedef T type; };
+    template <typename T> struct remove_extent<volatile Vector<T>> { typedef T type; };
+    template <typename T> struct remove_extent<const volatile Vector<T>> { typedef T type; };
 }
 
 #endif //ETL_VECTOR_H
