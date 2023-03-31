@@ -118,6 +118,7 @@ namespace Project::etl {
     /// compare all, any or none of between two containers
     template <class Container1, class Container2> constexpr bool
     compare_all(const Container1& cont1, const Container2& cont2) {
+        if (len(cont1) != len(cont2)) return false;
         for (auto [x, y] : zip(cont1, cont2)) if (x != y) return false;
         return true;
     }

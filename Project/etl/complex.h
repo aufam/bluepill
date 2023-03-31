@@ -25,7 +25,7 @@ namespace Project::etl {
 
         typedef T value_type;
         static constexpr T max_value = is_complex32 ? 0x7FFF'FFFF : is_complex16 ? 0x7FFF : 0x7F;
-        static constexpr float max_value_f = static_cast<float> (max_value);
+        static constexpr double max_value_f = is_complex32 ? 2147483647.0 : is_complex16 ? 32767.0 : 127.0;
 
         /* conversion operations */
         explicit constexpr operator complex32 () const {
@@ -60,8 +60,11 @@ namespace Project::etl {
         template <class T2> constexpr enable_if_t<is_arithmetic_v<T2>, complex> operator * (T2 val) const {
             return complex { static_cast<T>(real * val), static_cast<T>(imag * val) };
         }
-        template <class T2> constexpr enable_if_t<is_arithmetic_v<T2>, complex> operator / (T2 val) const {
+        template <class T2> constexpr enable_if_t<is_floating_point_v<T2>, complex> operator / (T2 val) const {
             return complex { real_f() / val, imag_f() / val };
+        }
+        template <class T2> constexpr enable_if_t<is_integral_v<T2>, complex> operator / (T2 val) const {
+            return complex { real / val, imag / val };
         }
 
         template <class T2> constexpr auto operator + (const complex<T2>& other) const {
@@ -110,10 +113,10 @@ namespace Project::etl {
                      a.y * b.x - a.x * b.y };
         }
         [[nodiscard]] constexpr int32_t magnitude_square() const {
-            auto a = static_cast<complex16>(*this);
-            return a.real * a.real + a.imag * a.imag;
+            auto [re, im] = static_cast<complex8>(*this);
+            return re * re + im * im;
         }
-        [[nodiscard]] constexpr int32_t magnitude_square_f() const {
+        [[nodiscard]] constexpr float magnitude_square_f() const {
             auto [re, im] = to_float();
             return re * re + im * im;
         }
@@ -201,11 +204,11 @@ namespace Project::etl {
     constexpr enable_if_t<! is_complex_v<T>, bool> operator < (T val, const complex<C>& c) {
         return complex<C> { val } < c;
     }
+}
 
-    namespace literals {
-        constexpr auto operator ""_i(long double val) {
-            return complex32 { 0.f, static_cast<float>(std::abs(val)) };
-        }
+namespace Project::etl::literals {
+    constexpr auto operator ""_i(long double val) {
+        return complex32 { 0.f, static_cast<float>(clamp(val, -1.0l, 1.0l)) };
     }
 }
 

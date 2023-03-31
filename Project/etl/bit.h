@@ -50,12 +50,10 @@ namespace Project::etl {
         return count;
     }
 
-    template <typename T>
-    constexpr enable_if_t<is_unsigned_integral_v<T> && sizeof(T) <= 4u, uint32_t>
+    template <typename T> auto
     count_trailing_zeros(T value) { return count_trailing<0>(value); }
 
-    template <typename T>
-    constexpr enable_if_t<is_unsigned_integral_v<T> && sizeof(T) <= 4u, uint32_t>
+    template <typename T> auto
     count_trailing_ones(T value) { return count_trailing<1>(value); }
 
     /// counts the number of consecutive 0 or 1 bits, starting from the most significant bit
@@ -101,12 +99,10 @@ namespace Project::etl {
         return count;
     }
 
-    template <typename T>
-    constexpr enable_if_t<is_unsigned_integral_v<T> && sizeof(T) <= 4u, uint32_t>
+    template <typename T> auto
     count_leading_zero(T value) { return count_leading<0>(value); }
 
-    template <typename T>
-    constexpr enable_if_t<is_unsigned_integral_v<T> && sizeof(T) <= 4u, uint32_t>
+    template <typename T> auto
     count_leading_ones(T value) { return count_leading<1>(value); }
 
     /// finds the smallest number of bits needed to represent the given value
