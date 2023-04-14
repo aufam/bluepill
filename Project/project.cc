@@ -13,7 +13,8 @@ var f = string();
 fun mainThread(void *) {
     adc1.init();
 
-    usb.setRxCallback(lambda (val, val buf, val len) {
+    usb.setRxCallback(lambda (auto, auto buf, auto len) {
+        *const_cast<uint8_t*>(buf + len) = '\0'; // manually add null terminator
         val &str = string_cast<64>(buf);
         if (str is "adc")
             usb << f("%ul\n%ul\n%ul\n", adc1[0], adc1[1], adc1[2]);
@@ -29,5 +30,5 @@ fun mainThread(void *) {
 
 fun project_init() -> void {
     var static thread = Thread<256>();
-    thread.init(mainThread, nullptr, osPriorityAboveNormal, "Main Thread");
+    thread.init(mainThread, null, osPriorityAboveNormal, "Main Thread");
 }
