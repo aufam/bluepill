@@ -11,15 +11,16 @@ namespace Project::Periph {
         /// callback function class
         using Callback = etl::Function<void(), void*>;
 
+        inline static bool isUsingDebounceDelayBuffer[16] = {};
         Callback callbacks[16] = {}; ///< list of callback function of every GPIO pin
-        static const uint32_t debounceDelay = 250; ///< button debounce delay in ticks
+        static constexpr uint32_t debounceDelay = 250; ///< button debounce delay in ticks
         constexpr Exti() = default;
 
         /// set exti callback of given GPIO pin
         /// @param pin GPIO_PIN_X see stm32fXxx_hal_gpio.h
         /// @param fn function pointer
         /// @param arg function argument
-        void setCallback(uint16_t pin, Callback::Fn fn = nullptr, void *arg = nullptr);
+        void setCallback(uint16_t pin, Callback::Fn fn = nullptr, void *arg = nullptr, bool isUsingDebounceDelay = false);
     };
 
     inline Exti exti;

@@ -10,17 +10,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
     auto pinPrev = pinNow;
     auto timePrev = timeNow;
+
     timeNow = osKernelGetTickCount();
     pinNow = GPIO_Pin;
-    if (timeNow - timePrev < Exti::debounceDelay and pinNow == pinPrev) return;
 
+    bool isDebounce = timeNow - timePrev < Exti::debounceDelay and pinNow == pinPrev;
     uint32_t b = 1;
-    for (auto [i, callback] : enumerate(exti.callbacks))
-        if ((b << i) & GPIO_Pin) callback();
+    for (auto [i, callback] : enumerate(exti.callbacks)) if ((b << i) & GPIO_Pin) {
+        if (Exti::isUsingDebounceDelayBuffer[i] && isDebounce) continue;
+        callback();
+    }
 }
 
-void Exti::setCallback(uint16_t pin, Callback::Fn fn, void *arg) {
+void Exti::setCallback(uint16_t pin, Callback::Fn fn, void *arg, bool isUsingDebounceDelay) {
     uint32_t b = 1;
-    for (auto [i, callback] : enumerate(exti.callbacks))
-        if ((b << i) & pin) callback = { fn, arg };
+    for (auto [i, callback] : enumerate(exti.callbacks)) if ((b << i) & pin) {
+        callback = { fn, arg };
+        Exti::isUsingDebounceDelayBuffer[i] = isUsingDebounceDelay;
+    }
 }
