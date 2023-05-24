@@ -81,13 +81,13 @@ namespace Project::etl {
     template <class X, class Y> constexpr Y
     interpolate(const X& x, const X& x1, const X& x2, const Y& y1, const Y& y2, bool trim = true) {
         Y res = y1 + (Y) (static_cast<float>(y2 - y1) * static_cast<float>(x - x1) / static_cast<float>(x2 - x1));
-        return trim ? clamp(res, y1, y2) : res;
+        return trim ? etl::clamp(res, y1, y2) : res;
     }
     template <class X, class Y> constexpr Y
     interpolate(const X& x, const Pair<X,Y>& p1, const Pair<X,Y>& p2, bool trim = true) {
         auto& [x1, y1] = p1;
         auto& [x2, y2] = p2;
-        return interpolate(x, x1, x2, y1, y2, trim);
+        return etl::interpolate(x, x1, x2, y1, y2, trim);
     }
 }
 

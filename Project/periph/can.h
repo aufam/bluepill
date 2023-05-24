@@ -3,11 +3,12 @@
 
 #include "../../Core/Inc/can.h"
 #include "etl/function.h"
+#include "etl/linked_list.h"
 
-/// select fifo0 or fifo1 (default)
+/// select rx fifo buffer that is configured by CubeMX
 #define PERIPH_CAN_USE_FIFO1
 
-namespace Project::Periph {
+namespace Project::periph {
 
     /// CAN peripheral class
     /// @note requirements: CAN RXx interrupt
@@ -25,42 +26,106 @@ namespace Project::Periph {
 #endif
         };
 
-        /// received message struct
-        struct Message : public CAN_RxHeaderTypeDef {
-            uint8_t data[8];
-        };
+        /// received message class
+        struct Message : CAN_RxHeaderTypeDef { uint8_t data[8]; };
 
-        /// callback function struct
+        /// callback function class
         using Callback = etl::Function<void(Message &), void*>;
 
-        CAN_HandleTypeDef &hcan;
-        CAN_FilterTypeDef canFilter = {};
+        using CallbackList = etl::LinkedList<Callback>;
+
+        CAN_HandleTypeDef &hcan;            ///< CAN handler configured by CubeMX
+        CAN_FilterTypeDef canFilter = {}; 
         CAN_TxHeaderTypeDef txHeader = {};
         uint32_t txMailbox = {};
-        Callback rxCallback = {};
+        CallbackList rxCallbackList = {};
+
+        /// default constructor
         constexpr explicit CAN(CAN_HandleTypeDef &hcan) : hcan(hcan) {}
 
+        CAN(const CAN&) = delete; ///< disable copy constructor
+        CAN(CAN&&) = delete;      ///< disable move constructor
+
+        CAN& operator=(const CAN&) = delete;  ///< disable copy assignment
+        CAN& operator=(CAN&&) = delete;       ///< disable move assignment
+
         /// set rx callback, start CAN and activate notification at RX FIFO message pending
-        /// @param useExtId true: use extended ID, false: use standard ID (default)
-        /// @param fn rx callback function pointer, default = null
-        /// @param arg rx callback function argument, default = null
-        void init(bool useExtId = false, Callback::Fn fn = nullptr, void* arg = nullptr) {
+        /// @param useExtId true: use extended ID
+        /// @param fn rx callback function pointer
+        /// @param arg rx callback function argument
+        template <typename Arg>
+        void init(bool useExtId, void(*fn)(Arg*, Message&), Arg* arg) {
             txHeader.RTR = CAN_RTR_DATA;
             txHeader.TransmitGlobalTime = DISABLE;
             setIdType(useExtId);
             setRxCallback(fn, arg);
+            setFilter();
+            HAL_CAN_Stop(&hcan);
             HAL_CAN_Start(&hcan);
             HAL_CAN_ActivateNotification(&hcan, IT_RX_FIFO);
         }
 
-        /// stop CAN and reset callback
-        void deinit() {
+        /// set rx callback, start CAN and activate notification at RX FIFO message pending
+        /// @param useExtId true: use extended ID, false: use standard ID (default)
+        /// @param fn rx callback function pointer, default = null
+        void init(bool useExtId = false, void(*fn)(Message&) = nullptr) {
+            txHeader.RTR = CAN_RTR_DATA;
+            txHeader.TransmitGlobalTime = DISABLE;
+            setIdType(useExtId);
+            setRxCallback(fn);
+            setFilter();
             HAL_CAN_Stop(&hcan);
-            setRxCallback(nullptr);
+            HAL_CAN_Start(&hcan);
+            HAL_CAN_ActivateNotification(&hcan, IT_RX_FIFO);
         }
 
-        void setRxCallback(Callback::Fn fn, void* arg = nullptr) {
-            rxCallback = { fn, arg };
+        /// stop CAN 
+        void deinit() { HAL_CAN_Stop(&hcan); }
+
+        /// set rx callback
+        /// @param fn rx callback function pointer
+        /// @param arg rx callback function argument
+        template <typename Arg>
+        void setRxCallback(void (*fn)(Arg*, Message&), Arg* arg) {
+            if (fn == nullptr) 
+                return;
+            
+            auto callback = Callback((void(*)(void*, Message&)) fn, (void*) arg);
+            if (etl::find(rxCallbackList, callback)) // return if callback is already in the list
+                return;
+            
+            rxCallbackList.push(callback);
+        }
+
+        /// set rx callback
+        /// @param fn rx callback function pointer
+        void setRxCallback(void(*fn)(Message&)) {
+            if (fn == nullptr) 
+                return;
+
+            auto callback = Callback(wrapperFunc, (void*) fn);
+            if (etl::find(rxCallbackList, callback)) // return if callback is already in the list
+                return;
+
+            rxCallbackList.push(callback);
+        }
+
+        /// remove rx callback from the list
+        /// @param fn rx callback function pointer
+        /// @param arg rx callback function argument
+        template <typename Arg>
+        void detachRxCallback(void (*fn)(Arg*, Message&), Arg* arg) {
+            auto callback = Callback((void(*)(void*, Message&)) fn, (void*) arg);
+            auto it = etl::find(rxCallbackList, callback);
+            if (it) it.detach();
+        }
+
+        /// remove rx callback from the list
+        /// @param fn rx callback function pointer
+        void detachRxCallback(void (*fn)(Message&)) {
+            auto callback = Callback(wrapperFunc, (void*) fn);
+            auto it = etl::find(rxCallbackList, callback);
+            if (it) it.detach();
         }
 
         /// set filter by hardware
@@ -69,7 +134,7 @@ namespace Project::Periph {
         /// @example filter = 0b1100, mask = 0b1111 -> allowed rx id: only 0b1100
         /// @example filter = 0b1100, mask = 0b1110 -> allowed rx id: 0b1100 and 0b1101
         void setFilter(uint32_t filter = 0, uint32_t mask = 0) {
-            canFilter.FilterActivation = mask == 0 ? CAN_FILTER_DISABLE : CAN_FILTER_ENABLE;
+            canFilter.FilterActivation = CAN_FILTER_ENABLE;
 
             if (isUsingExtId()) {
                 // 18 bits, 3 bits offset, low half-word
@@ -114,10 +179,10 @@ namespace Project::Periph {
         /// @param buf pointer to data buffer
         /// @param len buffer length, maximum 8 bytes, default 8
         /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
-        int transmit(uint8_t *buf, uint16_t len = 8) {
+        int transmit(const uint8_t* buf, uint16_t len = 8) {
             if (len > 8) len = 8;
             txHeader.DLC = len;
-            return HAL_CAN_AddTxMessage(&hcan, &txHeader, buf, &txMailbox);
+            return HAL_CAN_AddTxMessage(&hcan, &txHeader, const_cast<uint8_t*>(buf), &txMailbox);
         }
 
         /// CAN transmit non blocking with specific tx ID
@@ -125,9 +190,27 @@ namespace Project::Periph {
         /// @param buf pointer to data buffer
         /// @param len buffer length, maximum 8 bytes, default 8
         /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
-        int transmit(uint32_t txId, uint8_t *buf, uint16_t len = 8) {
+        int transmit(uint32_t txId, const uint8_t* buf, uint16_t len = 8) {
             setId(txId);
             return transmit(buf, len);
+        }
+
+        /// CAN transmit non blocking with specific tx ID and set ID type
+        /// @param useExtId true: use extended ID, false: use standard ID
+        /// @param txId destination id
+        /// @param buf pointer to data buffer
+        /// @param len buffer length, maximum 8 bytes, default 8
+        /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
+        int transmit(bool useExtId, uint32_t txId, const uint8_t* buf, uint16_t len = 8) {
+            setIdType(useExtId);
+            setId(txId);
+            return transmit(buf, len);
+        }
+
+    private:
+        static void wrapperFunc(void* fn, Message& msg) {
+            auto f = (void(*)(Message&)) fn;
+            if (f) f(msg);
         }
     };
 

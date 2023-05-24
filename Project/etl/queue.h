@@ -7,144 +7,199 @@
 
 namespace Project::etl {
 
-    /// FreeRTOS message queue
-    /// @tparam T item type
-    /// @tparam N maximum number of item
+    /// FreeRTOS queue interface
     /// @note requires cmsis os v2
-    template <class T, size_t N>
-    class Queue {
-        mutable Array<T, N> buffer;
-        mutable StaticQueue_t controlBlock;
-    public:
-        mutable osMessageQueueId_t id;
-
+    /// @note should not be declared as const
+    template <typename T>
+    struct QueueInterface {
         typedef T value_type;
         typedef T* iterator;
         typedef const T* const_iterator;
         typedef T& reference;
         typedef const T& const_reference;
 
-        /// empty constructor
-        constexpr Queue() : buffer{}, controlBlock{}, id(nullptr) {}
+        osMessageQueueId_t id; ///< queue pointer
 
-        /// copy constructor
-        constexpr Queue(const Queue& q)
-        : buffer(q.buffer)
-        , controlBlock(q.controlBlock)
-        , id(q.id ? &controlBlock : nullptr) {}
-
-        /// copy assignment
-        constexpr Queue& operator=(const Queue& other) {
-            copy(other.buffer, buffer);
-            controlBlock = other.controlBlock;
-            id = other.id ? &controlBlock : nullptr;
-            return *this;
-        }
+        /// default constructor
+        explicit constexpr QueueInterface(osMessageQueueId_t id) : id(id) {}
 
         /// move constructor
-        constexpr Queue(Queue&& q) noexcept
-        : buffer(move(q.buffer))
-        , controlBlock(move(controlBlock))
-        , id(q.id ? &controlBlock : nullptr) { q.id = nullptr; }
+        QueueInterface(QueueInterface&& q) : id(etl::move(q.id)) { q.id = nullptr; }
 
         /// move assignment
-        constexpr Queue& operator=(Queue&& other) noexcept {
-            buffer = move(other.buffer);
-            controlBlock = move(other.controlBlock);
-            id = other.id ? &controlBlock : nullptr;
+        QueueInterface& operator=(QueueInterface&& q) { 
+            if (this == &q) return *this;
+            detach(); 
+            id = etl::exchange(q.id, nullptr); 
             return *this;
         }
 
+        /// default destructor
+        ~QueueInterface() { detach(); }
+
+        QueueInterface(const QueueInterface&) = delete;               ///< disable copy constructor
+        QueueInterface& operator=(const QueueInterface&) = delete;    ///< disable copy assignment
+        
+        /// return true if id is not null
+        explicit operator bool() { return (bool) id; }
+
+        /// push an item to the queue
+        /// @param[in] item the item
+        /// @param[in] timeout in os ticks, default 0
+        /// @param[in] prio priority level, default 0 (lowest)
+        /// @return osStatus
+        /// @note can be called from ISR if timeout == 0
+        osStatus_t push(const_reference item, uint32_t timeout = 0, uint8_t prio = 0) { 
+            return osMessageQueuePut(id, &item, prio, timeout); 
+        }
+        
+        /// pop first item out from the queue
+        /// @param[out] item first item from queue
+        /// @param[in] timeout in tick, default 0
+        /// @param[out] prio pointer to priority level, default null (ignore)
+        /// @return osStatus
+        /// @note can be called from ISR if timeout == 0
+        osStatus_t pop(reference item, uint32_t timeout = 0, uint8_t* prio = nullptr) { 
+            return osMessageQueueGet(id, &item, prio, timeout); 
+        }
+
+        /// pop first item out from the queue
+        /// @param[in] timeout wait in tick, default 0
+        /// @param[out] prio pointer to priority level, default null (ignore)
+        /// @return the first item
+        /// @note can be called from ISR if timeout == 0
+        value_type pop(uint32_t timeout = 0, uint8_t *prio = nullptr) {
+            value_type item = {};
+            pop(item, timeout, prio);
+            return item;
+        }
+
+        /// get the capacity
+        /// @note cannot be called from ISR
+        uint32_t size() { return osMessageQueueGetCapacity(id); }
+
+        /// get the item size in bytes
+        /// @note cannot be called from ISR
+        uint32_t itemSize() { return osMessageQueueGetMsgSize(id); }
+
+        /// get the number of items
+        /// @note can be called from ISR
+        uint32_t len() { return osMessageQueueGetCount(id); }
+
+        /// get the remaining space
+        /// @note can be called from ISR
+        uint32_t rem() { return osMessageQueueGetSpace(id); }
+
+        /// reset the queue
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t clear() { return osMessageQueueReset(id); }
+
+        /// delete resource and set id to null
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t detach() { return osMessageQueueDelete(etl::exchange(id, nullptr)); }
+
+        /// return pointer of the data
+        /// @note can be called from ISR
+        iterator data() { 
+            auto head = reinterpret_cast<StaticQueue_t*>(id);
+            return reinterpret_cast<iterator>(head->pvDummy1[0]); 
+        }
+
+        /// return pointer of the first item
+        /// @note can be called from ISR
+        iterator begin() { return data(); }
+
+        /// return pointer of one past the last item 
+        /// @note can be called from ISR
+        iterator end() { return begin() + len(); }
+
+        /// return reference of first item 
+        /// @note can be called from ISR
+        /// @note the number of items has to be more than 0
+        reference front() { return *begin(); }
+
+        /// return reference of last item 
+        /// @note can be called from ISR
+        /// @note the number of items has to be more than 0
+        reference back() { return *(begin() + (len() - 1)); }
+
+        /// get the i-th item without removing from the queue
+        /// @note can be called from ISR
+        /// @note the number of items has to be more than 0
+        reference operator[](int i) {
+            auto l = len();
+            if (l == 0) return *begin();
+            if (i < 0) i = l + i; // allowing negative index
+            return *(begin() + i);
+        }
+
+        /// push operator
+        /// @param[in] item the first item
+        /// @note can be called from ISR
+        QueueInterface<T>& operator<<(const_reference item) { push(item); return *this; }
+
+        /// pop operator
+        /// @param[out] item the first item
+        /// @note can be called from ISR
+        QueueInterface<T>& operator>>(reference item) { pop(item); return *this; }
+
+    };
+
+    /// create dynamic queue 
+    /// @tparam T item type
+    /// @param capacity maximum number of items
+    /// @param name as null terminated string
+    /// @return queue object
+    /// @note cannot be called from ISR
+    template <typename T>
+    auto queue(uint32_t capacity, const char* name = nullptr) { 
+        osMessageQueueAttr_t attr = {};
+        attr.name = name;
+        return QueueInterface<T>(osMessageQueueNew(capacity, sizeof(T), &attr)); 
+    }
+
+    /// FreeRTOS static queue
+    /// @tparam T item type
+    /// @tparam N maximum number of items
+    /// @note requires cmsis os v2
+    /// @note should not be declared as const
+    template <class T, size_t N>
+    class Queue : public QueueInterface<T> {
+        StaticQueue_t controlBlock = {};
+        Array<T, N> buffer = {};
+
+    public:
+        /// default constructor
+        constexpr Queue() : QueueInterface<T>(nullptr) {}
+
+        Queue(const Queue&) = delete; ///< disable copy constructor
+        Queue(Queue&& t) = delete;    ///< disable move constructor
+
+        Queue& operator=(const Queue&) = delete;  ///< disable copy assignment
+        Queue& operator=(Queue&&) = delete;       ///< disable move assignment
+
         /// initiate queue
-        /// @param name string name, default null
-        /// @retval @ref osOK: success, @ref osError: failed (already initiated)
-        osStatus_t init(const char *name = nullptr) const {
-            if (id) return osError;
+        /// @param name as null terminated string
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t init(const char *name = nullptr) {
+            if (this->id) return osError;
             osMessageQueueAttr_t attr = {};
             attr.name = name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
             attr.mq_mem = &buffer;
             attr.mq_size = sizeof(buffer);
-            id = osMessageQueueNew(N, sizeof(T), &attr);
+            this->id = osMessageQueueNew(N, sizeof(T), &attr);
             return osOK;
         }
 
         /// deinit queue
-        /// @retval @ref osOK: success, @ref osError: failed (already initiated)
-        osStatus_t deinit() const {
-            if (id == nullptr) return osError;
-            if (osMessageQueueDelete(id) == osOK) id = nullptr;
-            return osOK;
-        }
-
-        auto clear()    const { return osMessageQueueReset(id); }        ///< clear all items
-        auto rem()      const { return osMessageQueueGetSpace(id); }     ///< remaining space
-        auto len()      const { return osMessageQueueGetCount(id); }     ///< number of items
-        auto size()     const { return osMessageQueueGetCapacity(id); }  ///< maximum number of item
-        auto itemSize() const { return osMessageQueueGetMsgSize(id); }   ///< item size in bytes
-
-        iterator data()   { return buffer; }
-        iterator begin()  { return buffer; }
-        iterator end()    { return buffer + len(); }
-        reference front() { return buffer[0]; }            ///< get first item, no pop
-        reference back()  { return buffer[len() - 1]; }    ///< get last item, no pop
-
-        const_iterator data()   const { return buffer; }
-        const_iterator begin()  const { return buffer; }
-        const_iterator end()    const { return buffer + len(); }
-        const_reference front() const { return buffer[0]; }            ///< get first item, no pop
-        const_reference back()  const { return buffer[len() - 1]; }    ///< get last item, no pop
-
-        /// get the i-th item without removing from the queue
-        reference operator [](int i) {
-            if (len() == 0) return buffer[0];
-            if (i < 0) i = len() + i; // allowing negative index
-            return buffer[i];
-        }
-
-        /// get the i-th item without removing from the queue
-        const_reference operator [](int i) const {
-            if (len() == 0) return buffer[0];
-            if (i < 0) i = len() + i; // allowing negative index
-            return buffer[i];
-        }
-
-        explicit operator bool() const { return len() > 0; } ///< return true if len > 0
-
-        Queue& operator<<(const T &item) { push(item); return *this; }             ///< push operator, no wait
-        Queue& operator>>(T &item) { pop(item); return *this; }                    ///< pop operator, no wait
-
-        const Queue& operator<<(const T &item) const { push(item); return *this; }
-        const Queue& operator>>(T &item) const { pop(item); return *this; }
-
-        /// push an item to the queue
-        /// @param[in] item the item
-        /// @param[out] timeout in tick, default 0
-        /// @param[in] prio priority level, default 0 (lowest)
-        /// @retval osStatusXxx
-        osStatus_t push(const T &item, uint32_t timeout = 0, uint8_t prio = 0) const {
-            return osMessageQueuePut(id, &item, prio, timeout);
-        }
-
-        /// pop first item from the queue
-        /// @param[out] item first item from queue
-        /// @param[out] timeout in tick, default 0
-        /// @param[out] prio pointer to priority level, default null (ignore)
-        /// @retval osStatusXxx
-        osStatus_t pop(T &item, uint32_t timeout = 0, uint8_t *prio = nullptr) const {
-            return osMessageQueueGet(id, &item, prio, timeout);
-        }
-
-        /// pop first item from the queue
-        /// @param[in] timeout wait in tick, default 0
-        /// @param[out] prio pointer to priority level, default null (ignore)
-        /// @retval first item from queue, assuming no error
-        T pop(uint32_t timeout = 0, uint8_t *prio = nullptr) const {
-            T item = {};
-            pop(item, timeout, prio);
-            return item;
-        }
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t deinit() { return this->detach(); }
     };
 
 }

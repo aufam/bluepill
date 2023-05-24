@@ -3,7 +3,7 @@
 
 #include "stm32f1xx_hal.h"
 
-namespace Project::Periph {
+namespace Project::periph {
 
     /// simple EEPROM emulation using flash memory
     /// @tparam T data type
@@ -19,7 +19,7 @@ namespace Project::Periph {
                 .NbPages = pageNumber };
 
         union { T data; uint32_t buffer[(sizeof (T) + 3) / 4]; };
-        uint32_t crc;
+        volatile uint32_t crc;
         constexpr Flash() : data{}, crc{} {}
         constexpr explicit Flash(const T& data) : data(data), crc{} {}
 
@@ -55,24 +55,23 @@ namespace Project::Periph {
         /// read data from selected page address
         /// @retval HAL_OK: success, HAL_ERROR: failed
         HAL_StatusTypeDef read() {
-            auto eeprom = Flash<T> {};
-            auto address = pageAddress;
-            for (auto ptr = (uint32_t *) &eeprom; ptr <= &eeprom.crc; ptr++, address += 4)
-                *ptr = *(__IO uint32_t *) address;
-
-            if (eeprom.crc != eeprom.calculateCRC()) return HAL_ERROR;
-            *this = eeprom;
+            auto eeprom = (Flash<volatile T>*) pageAddress;
+            if (eeprom->crc != eeprom->calculateCRC()) 
+                return HAL_ERROR;
+            
+            *this = *eeprom;
             return HAL_OK;
         }
 
         /// calculate crc with xor
         [[nodiscard]] uint32_t calculateCRC() const {
             uint32_t res = 0;
-            for (auto ptr = (uint32_t *) this; ptr < &crc; ptr++) res ^= *ptr;
+            for (auto ptr = (volatile uint32_t *) this; ptr < &crc; ptr++) 
+                res ^= *ptr;
             return res;
         }
 
-        Flash& operator = (const T& other) {
+        Flash& operator=(const T& other) {
             data = other;
             write();
             return *this;

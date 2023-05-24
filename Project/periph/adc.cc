@@ -1,8 +1,9 @@
 #include "periph/adc.h"
 
+using namespace Project::periph;
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-    using namespace Project::Periph;
-    ADC* adc;
+    ADCD* adc;
     if (hadc->Instance == adc1.hadc.Instance) adc = &adc1;
     else return;
 

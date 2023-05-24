@@ -1,41 +1,52 @@
 #include "project.h"
 #include "etl/all.h"
+#include "periph/all.h"
 #include "oled/oled.h"
+#include "lcd/lcd.h"
 #include "etl/keywords.h"
 
 using namespace Project;
-using namespace Project::Periph;
-using namespace Project::etl;
 using namespace Project::etl::literals;
 
-enum { EVENT_CLEAR, EVENT_BT_UP, EVENT_BT_DOWN, EVENT_BT_RIGHT, EVENT_BT_LEFT, EVENT_BT_ROT, EVENT_ROT_UP, EVENT_ROT_DOWN };
-var event = Queue<int, 1>();
-var oled = Oled(i2c2);
-var &encoder = encoder1;
-var f = string();
+var &encoder = periph::encoder1;
 
-fun mainThread(void *) {
-    event.init();
+fun mainThread() {
+    var oled = Oled(periph::i2c2);
     oled.init();
 
-    exti.setCallback(button_up_Pin,     lambda (val) { event << EVENT_BT_UP; });
-    exti.setCallback(button_down_Pin,   lambda (val) { event << EVENT_BT_DOWN; });
-    exti.setCallback(button_right_Pin,  lambda (val) { event << EVENT_BT_RIGHT; });
-    exti.setCallback(button_left_Pin,   lambda (val) { event << EVENT_BT_LEFT; });
-    exti.setCallback(button_rot_Pin,    lambda (val) { event << EVENT_BT_ROT; });
+    enum { EVENT_BT_UP, EVENT_BT_DOWN, EVENT_BT_RIGHT, EVENT_BT_LEFT, EVENT_BT_ROT, EVENT_ROT_UP, EVENT_ROT_DOWN };
+    var evt = etl::event();
 
-    encoder.init();
-    encoder.setIncrementCB(lambda (val) { event << EVENT_ROT_UP; });
-    encoder.setDecrementCB(lambda (val) { event << EVENT_ROT_DOWN; });
+    periph::exti.setCallback(button_up_Pin, +lambda (decltype(evt)* evt) { 
+        evt->setFlags(1 << EVENT_BT_UP); }, &evt);
+    periph::exti.setCallback(button_down_Pin, +lambda (decltype(evt)* evt) { 
+        evt->setFlags(1 << EVENT_BT_DOWN); }, &evt);
+    periph::exti.setCallback(button_right_Pin, +lambda (decltype(evt)* evt) { 
+        evt->setFlags(1 << EVENT_BT_RIGHT); }, &evt);
+    periph::exti.setCallback(button_left_Pin, +lambda (decltype(evt)* evt) { 
+        evt->setFlags(1 << EVENT_BT_LEFT); }, &evt);
+    periph::exti.setCallback(button_rot_Pin, +lambda (decltype(evt)* evt) { 
+        evt->setFlags(1 << EVENT_BT_ROT); }, &evt);
 
+    encoder.setIncrementCB(+lambda (decltype(evt)* evt) { evt->setFlags(1 << EVENT_ROT_UP); }, &evt);
+    encoder.setDecrementCB(+lambda (decltype(evt)* evt) { evt->setFlags(1 << EVENT_ROT_DOWN); }, &evt);
+
+    var f = etl::string();
     oled << "Hello World!\n";
+    oled << f("heap free sz = %lu bytes\n", etl::heapGetFreeSize());
+
     for (;;) {
-        // wait event and print it to oled
-        oled << f("%d", event.pop(osWaitForever));
+        // wait evt and print it to oled
+        val allEventFlags = (1 << (EVENT_ROT_DOWN + 1)) - 1;
+        val catchedFlags = evt.waitFlags(allEventFlags);
+        val eventNumber = etl::count_trailing_zeros(catchedFlags);
+        oled << f("%lu", eventNumber);
     }
 }
 
 fun project_init() -> void {
-    var static thread = Thread<256>();
-    thread.init(mainThread, null, osPriorityAboveNormal, "Main Thread");
+    encoder.init();
+
+    // assign to static variable to ensure the lifetime extends the scope
+    var static s = etl::thread(mainThread, 256, osPriorityAboveNormal1);
 }

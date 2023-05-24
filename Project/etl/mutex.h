@@ -1,44 +1,91 @@
 #ifndef ETL_MUTEX_H
 #define ETL_MUTEX_H
 
-#include "FreeRTOS.h"
-#include "cmsis_os2.h"
-#include "etl/utility.h"
+#include "etl/thread.h"
 
 namespace Project::etl {
 
-    /// FreeRTOS mutex
+    /// FreeRTOS mutex interface.
     /// @note requires cmsis os v2
-    class Mutex {
-        StaticSemaphore_t controlBlock;
-    public:
-        osMutexId_t id;
+    /// @note should not be declared as const
+    struct MutexInterface {
+        osMutexId_t id; ///< mutex pointer
 
-        /// empty constructor
-        constexpr Mutex() : controlBlock{}, id(nullptr) {}
-
-        /// disable copy constructor
-        Mutex(const Mutex&) = delete;
-
-        /// disable copy assignment
-        Mutex& operator=(const Mutex&) = delete;
+        /// default constructor
+        explicit constexpr MutexInterface(osMutexId_t id) : id(id) {}
 
         /// move constructor
-        constexpr Mutex(Mutex&& m)
-        : controlBlock(move(m.controlBlock))
-        , id(m.id ? &controlBlock : nullptr) { m.id = nullptr; }
+        MutexInterface(MutexInterface&& m) : id(etl::move(m.id)) { m.id = nullptr; }
 
         /// move assignment
-        constexpr Mutex& operator=(Mutex&& other) noexcept {
-            controlBlock = move(other.controlBlock);
-            id = other.id ? &controlBlock : nullptr;
-            other.id = nullptr;
+        MutexInterface& operator=(MutexInterface&& m) { 
+            if (this == &m) return *this;
+            detach(); 
+            id = etl::exchange(m.id, nullptr); 
             return *this;
         }
 
+        /// default destructor
+        ~MutexInterface() { detach(); }
+
+        MutexInterface(const MutexInterface&) = delete;               ///< disable copy constructor
+        MutexInterface& operator=(const MutexInterface&) = delete;    ///< disable copy assignment
+        
+        /// return true if id is not null
+        explicit operator bool() { return (bool) id; }
+
+        /// lock mutex
+        /// @param timeout default = osWaitForever
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t lock(uint32_t timeout = osWaitForever) { return osMutexAcquire(id, timeout); }
+
+        /// unlock mutex
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t unlock() { return osMutexRelease(id); }
+
+        /// get thread that owns this mutex
+        /// @return thread object
+        /// @note cannot be called from ISR
+        auto getOwner() { return etl::ThreadInterface(osMutexGetOwner(id)); }
+
+        /// unlock mutex, delete resource, and set id to null
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t detach() { unlock(); return osMutexDelete(etl::exchange(id, nullptr)); }
+    };
+
+    /// create dynamic mutex
+    /// @param name string name, default null
+    /// @return mutex object
+    /// @note cannot be called from ISR
+    auto mutex(const char* name = nullptr) {
+        osMutexAttr_t attr = {};
+        attr.name = name;
+        return MutexInterface(osMutexNew(&attr));
+    }
+
+    /// FreeRTOS static mutex.
+    /// @note requires cmsis os v2
+    /// @note should not be declared as const
+    class Mutex : public MutexInterface {
+        StaticSemaphore_t controlBlock = {};
+
+    public:
+        /// default constructor
+        constexpr Mutex() : MutexInterface(nullptr) {}
+
+        Mutex(const Mutex&) = delete; ///< disable copy constructor
+        Mutex(Mutex&& t) = delete;    ///< disable move constructor
+
+        Mutex& operator=(const Mutex&) = delete;  ///< disable copy assignment
+        Mutex& operator=(Mutex&&) = delete;       ///< disable move assignment
+
         /// initiate mutex
         /// @param name string name, default null
-        /// @retval @ref osOK: success, @ref osError: failed (already initiated)
+        /// @return osStatus
+        /// @note cannot be called from ISR
         osStatus_t init(const char* name = nullptr) {
             if (id) return osError;
             osMutexAttr_t attr = {};
@@ -50,35 +97,39 @@ namespace Project::etl {
         }
 
         /// deinit mutex
-        /// @retval @ref osOK: success, @ref osError: failed (already deinitiated)
-        osStatus_t deinit() {
-            if (id == nullptr) return osError;
-            if (osMutexDelete(id) == osOK) id = nullptr;
-            return osOK;
-        }
-
-        /// lock mutex
-        /// @param timeout in tick, default = @ref osWaitForever
-        /// @retval osStatusXxx
-        osStatus_t lock(uint32_t timeout = osWaitForever) const { return osMutexAcquire(id, timeout); }
-
-        /// unlock mutex
-        /// @retval osStatusXxx
-        osStatus_t unlock() const { return osMutexRelease(id); }
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t deinit() { return detach(); }
     };
 
     /// lock mutex when entering a scope and unlock when exiting
     struct MutexScope {
-        osMutexId_t mutex;
+        osMutexId_t id;
 
-        explicit MutexScope(Mutex& mutex, uint32_t timeout = osWaitForever) : mutex(mutex.id) {
-            mutex.lock(timeout);
+        explicit MutexScope(osMutexId_t mutex, uint32_t timeout = osWaitForever) : id(mutex) {
+            osMutexAcquire(id, timeout);
         }
-        explicit MutexScope(osMutexId_t mutex, uint32_t timeout = osWaitForever) : mutex(mutex) {
-            osMutexAcquire(mutex, timeout);
-        }
-        ~MutexScope() { osMutexRelease(mutex); }
+
+        ~MutexScope() { osMutexRelease(id); }
     };
+
+    /// lock scope
+    /// @return mutex scope object
+    /// @note cannot be called from ISR
+    [[nodiscard("has to be assigned to a local scope variable")]] 
+    auto lockScope(MutexInterface& mutex) { return MutexScope(mutex.id); }
+
+    /// lock scope
+    /// @return mutex scope object
+    /// @note cannot be called from ISR
+    [[nodiscard("has to be assigned to a local scope variable")]] 
+    auto lockScope(Mutex& mutex) { return MutexScope(mutex.id); }
+
+    /// lock scope
+    /// @return mutex scope object
+    /// @note cannot be called from ISR
+    [[nodiscard("has to be assigned to a local scope variable")]] 
+    auto lockScope(osMutexId_t mutex) { return MutexScope(mutex); }
 }
 
 #endif //ETL_MUTEX_H

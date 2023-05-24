@@ -13,13 +13,13 @@ namespace Project {
         typedef const DevType &DeviceType;
         inline static constexpr uint32_t timeout = 100;
 
-        Periph::I2C &i2c;
+        periph::I2C &i2c;
         Font font; ///< see fonts/allFonts.h
         DeviceType device; ///< see SSD1306init.h
         uint8_t slaveAddr;
         uint8_t column, row;
 
-        constexpr explicit Oled(Periph::I2C &i2c,
+        constexpr explicit Oled(periph::I2C &i2c,
                                 Font font = Adafruit5x7,
                                 DeviceType device = Adafruit128x64,
                                 uint8_t slaveAddr = 0x78)

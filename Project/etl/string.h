@@ -37,7 +37,7 @@ namespace Project::etl {
         /// construct from array char with different size 
         template <size_t M>
         constexpr String(const char (&text)[M]) : str{} {
-            copy(text, text + min(N, M), begin());
+            etl::copy(text, text + etl::min(N, M), begin());
             str[N - 1] = '\0';
         }
 
@@ -56,8 +56,8 @@ namespace Project::etl {
         /// copy assignment
         template <size_t M>
         constexpr String& operator=(const String<M>& other) {
-            auto n = min(N, M);
-            copy(other.begin(), other.begin() + n, str);
+            auto n = etl::min(N, M);
+            etl::copy(other.begin(), other.begin() + n, str);
             str[N - 1] = '\0';
             return *this;
         }
@@ -65,14 +65,14 @@ namespace Project::etl {
         /// move constructor
         template <size_t M>
         constexpr String(String<M>&& other) noexcept : str{} {
-            *this = move(other);
+            *this = etl::move(other);
         }
 
         /// move assignment
         template <size_t M>
         constexpr String& operator=(String<M>&& other) noexcept {
-            auto n = min(N, M);
-            move(other.begin(), other.begin() + n, str);
+            auto n = etl::min(N, M);
+            etl::move(other.begin(), other.begin() + n, str);
             str[N - 1] = '\0';
             other.clear();
             return *this;
@@ -82,13 +82,13 @@ namespace Project::etl {
         static constexpr size_t size() { return N; }
 
         /// string length, maximum is N - 1
-        [[nodiscard]] constexpr size_t len() const { return find(str, str + N - 1, '\0') - str; }
+        [[nodiscard]] constexpr size_t len() const { return etl::find(str, str + N - 1, '\0') - str; }
 
         /// remaining space
         [[nodiscard]] constexpr size_t rem() const { return N - 1 - len(); }
 
         /// set all characters to 0
-        constexpr void clear() { fill(str, '\0'); }
+        constexpr void clear() { etl::fill(str, '\0'); }
 
         constexpr iterator data()   { return str; }
         constexpr iterator begin()  { return str; }
@@ -133,8 +133,8 @@ namespace Project::etl {
         /// append operator from other string
         template <size_t M>
         constexpr String& operator+=(const String<M>& other)  {
-            auto offset = other.data() + min(rem(), other.len());
-            auto last = copy(other.data(), offset, end());
+            auto offset = other.data() + etl::min(rem(), other.len());
+            auto last = etl::copy(other.data(), offset, end());
             *last = '\0';
             return *this;
         }
@@ -194,11 +194,11 @@ namespace Project::etl {
 
         template <size_t M>
         bool isContaining(const String<M>& other, size_t n) const {
-            for (size_t i : range(len())) if (strncmp(other.data(), &str[i], n) == 0) return true;
+            for (auto &ch : *this) if (strncmp(other.data(), &ch, n) == 0) return true;
             return false;
         }
         bool isContaining(const char* other, size_t n) const {
-            for (size_t i : range(len())) if (strncmp(other, &str[i], n) == 0) return true;
+            for (auto &ch : *this) if (strncmp(other, &ch, n) == 0) return true;
             return false;
         }
 
@@ -210,7 +210,7 @@ namespace Project::etl {
         auto split(const char* separator = " ") { return SplitString<M>(str, separator); }
     };
 
-    /// create string, size can be implicitly or explicitly specified
+    /// create string from string literal, size can be implicitly or explicitly specified
     template <size_t n = 0, size_t M, size_t N = (n > 0 ? n : M)> constexpr auto
     string(const char (&text)[M]) { return String<N> { text }; }
 
@@ -224,15 +224,15 @@ namespace Project::etl {
 
     /// create short string, size is ETL_SHORT_STRING_DEFAULT_SIZE 
     template <size_t N> constexpr auto 
-    short_string(const char (&text)[N]) { return string<ETL_SHORT_STRING_DEFAULT_SIZE>(text); }
+    short_string(const char (&text)[N]) { return etl::string<ETL_SHORT_STRING_DEFAULT_SIZE>(text); }
 
     /// create C-style formatted string, size is ETL_SHORT_STRING_DEFAULT_SIZE
     template <typename Arg, typename... Args> auto
-    short_string(const char* fmt, Arg arg, Args... args) { return string<ETL_SHORT_STRING_DEFAULT_SIZE>(fmt, arg, args...); }
+    short_string(const char* fmt, Arg arg, Args... args) { return etl::string<ETL_SHORT_STRING_DEFAULT_SIZE>(fmt, arg, args...); }
 
     /// create empty string, size is ETL_SHORT_STRING_DEFAULT_SIZE 
     constexpr auto 
-    short_string() { return string<ETL_SHORT_STRING_DEFAULT_SIZE>(); }
+    short_string() { return etl::string<ETL_SHORT_STRING_DEFAULT_SIZE>(); }
 
     /// create string from 2 strings, size is s1.size() + s2.size() - 1
     /// @warning string buffer might be unnecessarily large
@@ -249,28 +249,32 @@ namespace Project::etl {
 
     /// cast reference from any type
     template <typename T> constexpr auto&
-    string_cast(T& text) { return string_cast<sizeof(T)>(&text); }
+    string_cast(T& text) { return etl::string_cast<sizeof(T)>(&text); }
 
     /// swap specialization
     template <size_t N, size_t M> constexpr void
     swap(String<N>& s1, String<M>& s2) {
-        if constexpr (min(N, M) == N) {
-            String<N> temp(move(s1));
-            s1 = move(s2);
-            s2 = move(temp);
+        if constexpr (etl::min(N, M) == N) {
+            String<N> temp(etl::move(s1));
+            s1 = etl::move(s2);
+            s2 = etl::move(temp);
         }
         else {
-            String<M> temp(move(s2));
-            s2 = move(s1);
-            s1 = move(temp);
+            String<M> temp(etl::move(s2));
+            s2 = etl::move(s1);
+            s1 = etl::move(temp);
         }
     }
 
     /// swap_element specialization
     template <size_t N, size_t M> constexpr void
     swap_element(String<N>& s1, String<M>& s2) {
-        swap(s1, s2);
+        etl::swap(s1, s2);
     }
+
+    /// sum specialization
+    template <size_t N> constexpr auto
+    sum_element(const String<N>&) = delete;
 
     /// type traits
     template <size_t N> struct is_string<String<N>> : true_type {};

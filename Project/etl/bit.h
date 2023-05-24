@@ -51,10 +51,10 @@ namespace Project::etl {
     }
 
     template <typename T> auto
-    count_trailing_zeros(T value) { return count_trailing<0>(value); }
+    count_trailing_zeros(T value) { return etl::count_trailing<0>(value); }
 
     template <typename T> auto
-    count_trailing_ones(T value) { return count_trailing<1>(value); }
+    count_trailing_ones(T value) { return etl::count_trailing<1>(value); }
 
     /// counts the number of consecutive 0 or 1 bits, starting from the most significant bit
     template <size_t N, typename T>
@@ -100,15 +100,15 @@ namespace Project::etl {
     }
 
     template <typename T> auto
-    count_leading_zero(T value) { return count_leading<0>(value); }
+    count_leading_zero(T value) { return etl::count_leading<0>(value); }
 
     template <typename T> auto
-    count_leading_ones(T value) { return count_leading<1>(value); }
+    count_leading_ones(T value) { return etl::count_leading<1>(value); }
 
     /// finds the smallest number of bits needed to represent the given value
     template <typename T>
     constexpr enable_if_t<is_unsigned_integral_v<T> && sizeof(T) <= 4u, uint32_t>
-    bit_width(T value) { return sizeof(T) * 8 - count_leading_zero(value); }
+    bit_width(T value) { return sizeof(T) * 8 - etl::count_leading_zero(value); }
 
     /// counts the number of 1 bits in an unsigned integer
     template <typename T> constexpr enable_if_t<is_unsigned_integral_v<T> && sizeof(T) <= 4u, uint32_t>
@@ -130,14 +130,14 @@ namespace Project::etl {
     template <typename T> constexpr enable_if_t<is_unsigned_integral_v<T>, T>
     bit_ceil(T value) {
         if (value == T(0)) return T(1);
-        return T(1) << bit_width(T(value - T(1)));
+        return T(1) << etl::bit_width(T(value - T(1)));
     }
 
     /// finds the largest integral power of two not greater than the given value
     template <typename T> constexpr enable_if_t<is_unsigned_integral_v<T>, T>
     bit_floor(T value) {
         if (value == T(0)) return T(0);
-        return T(1) << (bit_width(value) - T(1));
+        return T(1) << (etl::bit_width(value) - T(1));
     }
 
     /// computes the result of bitwise left-rotation
@@ -170,9 +170,9 @@ namespace Project::etl {
         return (0x6996u >> value) & 1u;
     }
     template <typename T> constexpr enable_if_t<is_unsigned_integral_v<T> && sizeof(T) <= 4u, bool>
-    is_odd_parity(T value) { return parity(value) == 1u; }
+    is_odd_parity(T value) { return etl::parity(value) == 1u; }
     template <typename T> constexpr enable_if_t<is_unsigned_integral_v<T> && sizeof(T) <= 4u, bool>
-    is_even_parity(T value) { return parity(value) == 0u; }
+    is_even_parity(T value) { return etl::parity(value) == 0u; }
 
     template <typename T> constexpr enable_if_t<is_integral_v<T>, bool>
     is_odd(T value) { return (value & 1u) != 0u; }
