@@ -1,7 +1,8 @@
 #include "periph/uart.h"
 
+using namespace Project::periph;
+
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-    using namespace Project::periph;
     UART *uart;
     if (huart->Instance == uart1.huart.Instance) uart = &uart1;
     else if (huart->Instance == uart2.huart.Instance) uart = &uart2;
@@ -13,7 +14,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    using namespace Project::periph;
     UART *uart;
     if (huart->Instance == uart1.huart.Instance) uart = &uart1;
     else if (huart->Instance == uart2.huart.Instance) uart = &uart2;

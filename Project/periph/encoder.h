@@ -25,41 +25,33 @@ namespace Project::periph {
         Encoder& operator=(const Encoder&) = delete;  ///< disable copy assignment
         Encoder& operator=(Encoder&&) = delete;       ///< disable move assignment
 
-        /// set callback, and start encoder interrupt
-        template <typename IncArg, typename DecArg>
-        void init(void (*incFn)(IncArg*), IncArg* incArg, void (*decFn)(DecArg*), DecArg* decArg) {
-            setIncrementCB(incFn, incArg);
-            setDecrementCB(decFn, decArg);
-            HAL_TIM_Encoder_Start_IT(&htim, TIM_CHANNEL_ALL);
-        }
-
-        /// set callback, and start encoder interrupt
-        void init(void (*incFn)() = nullptr, void (*decFn)() = nullptr) {
-            init<void, void>((void(*)(void*)) incFn, nullptr, (void(*)(void*)) decFn, nullptr);
-        }
+        /// start encoder interrupt
+        void init() { HAL_TIM_Encoder_Start_IT(&htim, TIM_CHANNEL_ALL); }
 
         /// disable encoder interrupt
         void deinit() { HAL_TIM_Encoder_Stop_IT(&htim, TIM_CHANNEL_ALL); }
 
         /// set increment callback
-        /// @param fn increment callback function pointer
-        /// @param arg increment callback function argument
-        template <typename Arg>
-        void setIncrementCB(void (*fn)(Arg*), Arg* arg) { incrementCB = { (void(*)(void*)) fn, (void*) arg }; }
+        /// @param fn increment callback function
+        /// @param ctx increment callback function context
+        template <typename Fn, typename Ctx>
+        void setIncrementCB(Fn&& fn, Ctx* ctx) { incrementCB = Callback(etl::forward<Fn>(fn), ctx); }
         
         /// set increment callback
-        /// @param fn increment callback function pointer
-        void setIncrementCB(void (*fn)()) { incrementCB = { (void(*)(void*)) fn, nullptr }; }
+        /// @param fn increment callback function
+        template <typename Fn>
+        void setIncrementCB(Fn&& fn) { incrementCB = etl::forward<Fn>(fn); }
 
         /// set decrement callback
-        /// @param fn decrement callback function pointer
-        /// @param arg decrement callback function argument
-        template <typename Arg>
-        void setDecrementCB(void (*fn)(Arg*), Arg* arg) { decrementCB = { (void(*)(void*)) fn, (void*) arg }; }
+        /// @param fn decrement callback function
+        /// @param ctx decrement callback function context
+        template <typename Fn, typename Arg>
+        void setDecrementCB(Fn&& fn, Arg* ctx) { decrementCB = Callback(etl::forward<Fn>(fn), ctx); }
         
         /// set decrement callback
-        /// @param fn decrement callback function pointer
-        void setDecrementCB(void (*fn)()) { decrementCB = { (void(*)(void*)) fn, nullptr }; }
+        /// @param fn decrement callback function
+        template <typename Fn>
+        void setDecrementCB(Fn&& fn) { incrementCB = etl::forward<Fn>(fn); }
 
         void inputCaptureCallback() {
             uint16_t counter = htim.Instance->CNT;

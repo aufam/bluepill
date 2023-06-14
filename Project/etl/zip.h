@@ -68,7 +68,7 @@ namespace Project::etl {
 
     /// create zip object from any sequence
     template <typename... Sequences> constexpr auto
-    zip(Sequences&&... cont) { return Zip(etl::iter(cont)...); }
+    zip(Sequences&&... seq) { return Zip(etl::iter(seq)...); }
 
     /// iter specialization for zip object
     template <typename... Sequences> constexpr auto

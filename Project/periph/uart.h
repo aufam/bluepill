@@ -29,25 +29,8 @@ namespace Project::periph {
         UART& operator=(const UART&) = delete;  ///< disable move constructor
         UART& operator=(UART&&) = delete;       ///< disable move assignment
 
-        /// set callback and start receive to idle DMA
-        /// @param rxFn receive callback function pointer
-        /// @param rxArg receive callback function argument
-        /// @param txFn transmit callback function pointer
-        /// @param txArg transmit callback function argument
-        template <typename RxArg, typename TxArg>
-        void init(void (*rxFn)(RxArg*, const uint8_t*, size_t), RxArg* rxArg, void (*txFn)(TxArg*), TxArg* txArg) {
-            setRxCallback(rxFn, rxArg);
-            setTxCallback(txFn, txArg);
-            HAL_UARTEx_ReceiveToIdle_DMA(&huart, rxBuffer.data(), rxBuffer.len());
-            __HAL_DMA_DISABLE_IT(huart.hdmarx, DMA_IT_HT); // disable half complete callback
-        }
-
-        /// set callback and start receive to idle DMA
-        /// @param rxFn receive callback function pointer
-        /// @param txFn transmit callback function pointer
-        void init(void (*rxFn)(const uint8_t*, size_t) = nullptr, void (*txFn)() = nullptr) {
-            setRxCallback(rxFn);
-            setTxCallback(txFn);
+        /// start receive to idle
+        void init() {
             HAL_UARTEx_ReceiveToIdle_DMA(&huart, rxBuffer.data(), rxBuffer.len());
             __HAL_DMA_DISABLE_IT(huart.hdmarx, DMA_IT_HT); // disable half complete callback
         }
@@ -56,32 +39,26 @@ namespace Project::periph {
         void deinit() { HAL_UART_DMAStop(&huart); }
 
         /// set rx callback
-        /// @param fn receive callback function pointer
-        /// @param arg receive callback function argument
-        template <typename Arg>
-        void setRxCallback(void (*fn)(Arg*, const uint8_t*, size_t), Arg* arg) { 
-            rxCallback = { (void (*)(void*, const uint8_t*, size_t)) fn, (void*) arg }; 
-        }
+        /// @param fn receive callback function
+        /// @param ctx receive callback function context
+        template <typename Fn, typename Ctx>
+        void setRxCallback(Fn&& fn, Ctx* ctx) { rxCallback = RxCallback(etl::forward<Fn>(fn), ctx); }
 
         /// set rx callback
-        /// @param fn receive callback function pointer
-        void setRxCallback(void (*fn)(const uint8_t*, size_t)) { 
-            auto wrapperFunc = +[](void* fn, const uint8_t* buf, size_t len) {
-                auto f = (void(*)(const uint8_t*, size_t)) fn;
-                if (f) f(buf, len);
-            }; 
-            rxCallback = { wrapperFunc, (void*) fn };
-        }
+        /// @param fn receive callback function
+        template <typename Fn>
+        void setRxCallback(Fn&& fn) { rxCallback = etl::forward<Fn>(fn); }
 
         /// set tx callback
-        /// @param fn receive callback function pointer
-        /// @param arg receive callback function argument
-        template <typename Arg>
-        void setTxCallback(void (*fn)(Arg*), Arg* arg) { txCallback = { (void (*)(void*)) fn, (void*) arg }; }
+        /// @param fn receive callback function
+        /// @param ctx receive callback function context
+        template <typename Fn, typename Ctx>
+        void setTxCallback(Fn&& fn, Ctx* ctx) { txCallback = TxCallback(etl::forward<Fn>(fn), ctx); }
 
         /// set tx callback
-        /// @param fn receive callback function pointer
-        void setTxCallback(void (*fn)()) { txCallback = { (void (*)(void*)) fn, nullptr }; }
+        /// @param fn receive callback function
+        template <typename Fn>
+        void setTxCallback(Fn&& fn) { txCallback = etl::forward<Fn>(fn); }
 
         /// UART transmit blocking
         /// @param buf data buffer

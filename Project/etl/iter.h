@@ -65,7 +65,7 @@ namespace Project::etl {
 
     /// create reversed iter object from a container
     template <typename Container> constexpr auto
-    reversed(Container&& cont) { return etl::iter(cont, -1); }
+    reversed(Container&& cont) { return etl::iter(etl::forward<Container>(cont), -1); }
 
     /// iter specialization for iter object
     template <typename Iterator> constexpr auto

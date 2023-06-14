@@ -36,14 +36,14 @@ namespace Project::BLDC {
     };
 
     struct Values {
-        int id;
-        float inVoltage;
-        float mosfetTemp;
-        float outCurrent;
-        float inCurrent;
-        float erpm;
-        float duty;
-        int tachometer;
+        int id;                     ///< controller id
+        float inVoltage;            ///< in volt
+        float mosfetTemp;           ///< in C
+        float outCurrent;           ///< in ampere
+        float inCurrent;            ///< in ampere
+        float erpm;                 ///< in rpm
+        float duty;                 ///< in range [-1.0, 1.0]
+        int tachometer;             ///< relative position in step
         MC_FAULT_CODE faultCode;
 
         enum MASK : uint32_t {

@@ -39,7 +39,8 @@ namespace Project {
         void init() {
             trigger.init(GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH);
             event.init();
-            inputCapture.init(inputCaptureCallback, this);
+            inputCapture.init();
+            inputCapture.setCallback(inputCaptureCallback, this);
         }
 
         /// reset trigger pin, deinit event and deinit input capture

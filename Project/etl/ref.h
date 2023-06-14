@@ -1,131 +1,57 @@
 #ifndef ETL_REF_H
 #define ETL_REF_H
 
-#include "etl/utility.h"
+#include "etl/utility_basic.h"
 
 namespace Project::etl {
 
-    /// immutable object
-    template <typename T>
-    class ConstRef {
-        T own;
-        const T* ptr = nullptr;
-    
-    public:
-        constexpr ConstRef() = default;
-        constexpr ConstRef(const T& t) : own(t) {}
-        constexpr ConstRef(const T* t) : ptr(t) {}
-        constexpr const T& operator*()  const { return ptr ? *ptr : own; }
-        constexpr const T* operator->() const { return ptr ? ptr : &own; }
-    };
-
-    /// mutable object
+    /// wrap reference and provide a reference-like interface.
     template <typename T>
     class Ref {
-        T own;
-        const T* ptr = nullptr;
-    
-    public:
-        constexpr Ref() = default;
-        constexpr Ref(const T& t) : own(t) {}
-        constexpr Ref(T&& t) : own(etl::forward<T>(t)) {}
-        constexpr Ref(T* t) : ptr(t) {}
-        constexpr T& operator*()  { return ptr ? *ptr : own; }
-        constexpr T* operator->() { return ptr ? ptr : &own; }
-    };
-
-    template <typename T>
-    class unique_ptr {
         T* ptr;
     
     public:
-        unique_ptr() noexcept : ptr{nullptr} {}
-        explicit unique_ptr(T* ptr) noexcept : ptr{ptr} {}
+        /// empty constructor
+        constexpr Ref() : ptr(nullptr) {}
 
-        unique_ptr(const unique_ptr&) = delete;
-        unique_ptr& operator=(const unique_ptr&) = delete;
+        /// default constructor
+        constexpr explicit Ref(T& t) : ptr(etl::addressof(t)) {}
 
-        unique_ptr(unique_ptr&& other) noexcept : ptr{other.release()} {}
-        unique_ptr& operator=(unique_ptr&& other) noexcept { if (this != &other) reset(other.release()); return *this;}
-        
-        ~unique_ptr() noexcept { if (ptr) delete ptr; }
+        /// disable rvalue constructor
+        Ref(T&& t) = delete;
 
-        explicit operator bool() const noexcept { return static_cast<bool>(ptr); }
+        /// dereference operator
+        constexpr const T& operator*() const { return *ptr; }
+        constexpr T& operator*() { return *ptr; }
 
-        T* operator->() noexcept { return ptr; }
-        const T* operator->() const noexcept { return ptr; }
+        /// arrow operator
+        constexpr const T* operator->() const { return ptr; }
+        constexpr T* operator->() { return ptr; }
 
-        T& operator*() noexcept { return *ptr; }
-        const T& operator*() const noexcept { return *ptr; }
+        /// get pointer
+        constexpr const T* get() const { return ptr; }
+        constexpr T* get() { return ptr; }
 
-        T* get() noexcept { return ptr; }
-        const T* get() const noexcept { return ptr; }
-        
-        void reset(T* other = nullptr) noexcept { T* old = etl::exchange(ptr, other); if (old) delete old; }
-
-        [[nodiscard("return pointer has to be handled by the caller")]]
-        T* release() noexcept { return etl::exchange(ptr, nullptr); }
+        /// get value if ptr is not null or return other
+        constexpr const T& get_value_or(const T& other) const { return ptr ? *ptr : other; }
+        constexpr T& get_value_or(T& other) { return ptr ? *ptr : other; }
     };
 
-    template <typename T, typename... Args> auto
-    make_unique(Args&&... args) { return unique_ptr<T>(new T(etl::forward<Args>(args)...)); }
+    template <typename T> constexpr auto
+    ref() { return Ref<T>(); }
 
-    template <typename T>
-    class shared_ptr {
-        T* ptr;
-        int* cnt;
+    template <typename T> constexpr auto
+    ref_const() { return Ref<const T>(); }
 
-        void delete_() {
-            if (ptr && --*cnt == 0) {
-                delete ptr;
-                delete cnt;
-            } 
-        }
-        void inc_() { if (cnt) ++*cnt; }
-        void assign_(const shared_ptr& other) { ptr = other.ptr; cnt = other.cnt; } 
+    template <typename T> constexpr auto
+    ref(T& value) { return Ref<T>(value); }
 
-    public:
-        shared_ptr() noexcept : ptr{nullptr}, cnt{nullptr} {}
-        explicit shared_ptr(T* ptr) noexcept : ptr{ptr}, cnt{new int(1)} {}
-        
-        shared_ptr(const shared_ptr& other) noexcept : ptr{other.ptr}, cnt{other.cnt} { 
-            inc_(); 
-        }
-        shared_ptr& operator=(const shared_ptr& other) noexcept {
-            if (this == &other) return *this;
-            delete_();
-            assign_(other);
-            inc_();
-            return *this;
-        }
+    template <typename T> constexpr auto
+    ref_const(const T& value) { return Ref<const T>(value); }
 
-        shared_ptr(shared_ptr&& other) noexcept : ptr{other.ptr}, cnt{other.cnt} { 
-            other.assign_(shared_ptr()); 
-        }
-        shared_ptr& operator=(shared_ptr&& other) noexcept {
-            if (this == &other) return *this;
-            delete_();
-            assign_(other);
-            other.assign_(shared_ptr()); 
-            return *this;
-        }
+    template <typename T> void ref(const T&&) = delete;
 
-        ~shared_ptr() { delete_(); }
-
-        explicit operator bool() noexcept { return static_cast<bool>(ptr); }
-        
-        T* operator->() noexcept { return ptr; }
-        const T* operator->() const noexcept { return ptr; }
-
-        T& operator*() noexcept { return *ptr; }
-        const T& operator*() const noexcept { return *ptr; }
-
-        T* get() noexcept { return ptr; }
-        const T* get() const noexcept { return ptr; }
-    };
-
-    template <typename T, typename... Args> auto
-    make_shared(Args&&... args) { return shared_ptr<T>(new T(etl::forward<Args>(args)...)); }
+    template <typename T> void ref_const(const T&&) = delete;
 }
 
 #endif //ETL_REF_H

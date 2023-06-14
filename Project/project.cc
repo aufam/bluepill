@@ -15,21 +15,35 @@ fun mainThread() {
     oled.init();
 
     enum { EVENT_BT_UP, EVENT_BT_DOWN, EVENT_BT_RIGHT, EVENT_BT_LEFT, EVENT_BT_ROT, EVENT_ROT_UP, EVENT_ROT_DOWN };
-    var evt = etl::event();
+    var thd = etl::threadGetCurrent();
 
-    periph::exti.setCallback(button_up_Pin, +lambda (decltype(evt)* evt) { 
-        evt->setFlags(1 << EVENT_BT_UP); }, &evt);
-    periph::exti.setCallback(button_down_Pin, +lambda (decltype(evt)* evt) { 
-        evt->setFlags(1 << EVENT_BT_DOWN); }, &evt);
-    periph::exti.setCallback(button_right_Pin, +lambda (decltype(evt)* evt) { 
-        evt->setFlags(1 << EVENT_BT_RIGHT); }, &evt);
-    periph::exti.setCallback(button_left_Pin, +lambda (decltype(evt)* evt) { 
-        evt->setFlags(1 << EVENT_BT_LEFT); }, &evt);
-    periph::exti.setCallback(button_rot_Pin, +lambda (decltype(evt)* evt) { 
-        evt->setFlags(1 << EVENT_BT_ROT); }, &evt);
+    periph::exti.setCallback(button_up_Pin, lambda (var thd) { 
+        thd->setFlags(1 << EVENT_BT_UP); }, 
+    &thd);
 
-    encoder.setIncrementCB(+lambda (decltype(evt)* evt) { evt->setFlags(1 << EVENT_ROT_UP); }, &evt);
-    encoder.setDecrementCB(+lambda (decltype(evt)* evt) { evt->setFlags(1 << EVENT_ROT_DOWN); }, &evt);
+    periph::exti.setCallback(button_down_Pin, lambda (var thd) { 
+        thd->setFlags(1 << EVENT_BT_DOWN); }, 
+    &thd);
+
+    periph::exti.setCallback(button_right_Pin, lambda (var thd) { 
+        thd->setFlags(1 << EVENT_BT_RIGHT); }, 
+    &thd);
+
+    periph::exti.setCallback(button_left_Pin, lambda (var thd) { 
+        thd->setFlags(1 << EVENT_BT_LEFT); }, 
+    &thd);
+
+    periph::exti.setCallback(button_rot_Pin, lambda (var thd) { 
+        thd->setFlags(1 << EVENT_BT_ROT); }, 
+    &thd);
+
+    encoder.setIncrementCB(lambda (var thd) { 
+        thd->setFlags(1 << EVENT_ROT_UP); }, 
+    &thd);
+
+    encoder.setDecrementCB(lambda (var thd) { 
+        thd->setFlags(1 << EVENT_ROT_DOWN); }, 
+    &thd);
 
     var f = etl::string();
     oled << "Hello World!\n";
@@ -37,8 +51,7 @@ fun mainThread() {
 
     for (;;) {
         // wait evt and print it to oled
-        val allEventFlags = (1 << (EVENT_ROT_DOWN + 1)) - 1;
-        val catchedFlags = evt.waitFlags(allEventFlags);
+        val catchedFlags = etl::threadWaitFlagsAny();
         val eventNumber = etl::count_trailing_zeros(catchedFlags);
         oled << f("%lu", eventNumber);
     }
@@ -48,5 +61,5 @@ fun project_init() -> void {
     encoder.init();
 
     // assign to static variable to ensure the lifetime extends the scope
-    var static s = etl::thread(mainThread, 256, osPriorityAboveNormal1);
+    var static s = etl::make_thread(mainThread, 256, osPriorityAboveNormal1);
 }

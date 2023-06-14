@@ -3,6 +3,7 @@
 
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
+#include "etl/event.h"
 #include "etl/array.h"
 
 namespace Project::etl {
@@ -10,14 +11,16 @@ namespace Project::etl {
     /// FreeRTOS thread interface
     /// @note requires cmsis os v2
     /// @note should not be declared as const
-    struct ThreadInterface {
+    class ThreadInterface {
+    protected:
         osThreadId_t id; ///< thread pointer
 
+    public:
         /// default constructor
         explicit constexpr ThreadInterface(osThreadId_t id) : id(id) {}
 
         /// move constructor
-        ThreadInterface(ThreadInterface&& t) : id(etl::move(t.id)) { t.id = nullptr; }
+        ThreadInterface(ThreadInterface&& t) : id(etl::exchange(t.id, nullptr)) {}
 
         /// move assignment
         ThreadInterface& operator=(ThreadInterface&& t) { 
@@ -35,6 +38,9 @@ namespace Project::etl {
         
         /// return true if id is not null
         explicit operator bool() { return (bool) id; }
+
+        /// get thread pointer
+        osThreadId_t get() { return id; }
 
         /// name as null terminated string
         /// @note cannot be called from ISR
@@ -81,33 +87,109 @@ namespace Project::etl {
         /// set flags operator
         ThreadInterface& operator|(uint32_t flags) { setFlags(flags); return *this; }
     };
+    
+    /// FreeRTOS static thread
+    /// @tparam N buffer length (in words)
+    /// @note requires cmsis os v2
+    /// @note should not be declared as const
+    /// @note invoke init method before using
+    template <size_t N = configMINIMAL_STACK_SIZE>
+    class Thread : public ThreadInterface {
+        StaticTask_t controlBlock = {};
+        Array<uint32_t, N> buffer = {};
+
+    public:
+        /// default constructor
+        constexpr Thread() : ThreadInterface(nullptr) {}
+
+        Thread(const Thread&) = delete; ///< disable copy constructor
+        Thread(Thread&& t) = delete;    ///< disable move constructor
+
+        Thread& operator=(const Thread&) = delete;  ///< disable copy assignment
+        Thread& operator=(Thread&&) = delete;       ///< disable move assignment
+
+        /// initiate thread
+        /// @param fn thread function
+        /// @param arg thread function argument
+        /// @param prio osPriorityXxx, default = osPriorityNormal
+        /// @param name as null terminated string, default = null
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        template <typename Fn, typename Arg>
+        osStatus_t init(Fn&& fn, Arg* arg, osPriority_t prio = osPriorityNormal, const char* name = nullptr) { 
+            if (this->id) return osError;
+            osThreadAttr_t attr = {};
+            attr.name = name;
+            attr.cb_mem = &controlBlock;
+            attr.cb_size = sizeof(controlBlock);
+            attr.stack_mem = &buffer;
+            attr.stack_size = sizeof(buffer); // in byte
+            attr.priority = prio;
+            auto fp = static_cast<void (*)(Arg*)>(etl::forward<Fn>(fn));
+            this->id = osThreadNew(reinterpret_cast<void (*)(void*)>(fp), reinterpret_cast<void*>(arg), &attr);
+            return osOK;
+        }
+
+        /// initiate thread
+        /// @param fn function pointer
+        /// @param prio osPriorityXxx, default = osPriorityNormal
+        /// @param name as null terminated string, default = null
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        template <typename Fn>
+        osStatus_t init(Fn&& fn, osPriority_t prio = osPriorityNormal, const char* name = nullptr) { 
+            if (this->id) return osError;
+            osThreadAttr_t attr = {};
+            attr.name = name;
+            attr.cb_mem = &controlBlock;
+            attr.cb_size = sizeof(controlBlock);
+            attr.stack_mem = &buffer;
+            attr.stack_size = sizeof(buffer); // in byte
+            attr.priority = prio;
+            auto fp = static_cast<void (*)()>(etl::forward<Fn>(fn));
+            this->id = osThreadNew(reinterpret_cast<void (*)(void*)>(fp), nullptr, &attr);
+            return osOK;
+        }
+
+        /// detach thread
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t deinit() { return detach(); }
+    };
 
     /// create dynamic thread
-    /// @param fn function pointer
-    /// @param arg function argument
+    /// @param fn thread function
+    /// @param arg thread function argument
     /// @param stackSize in words (1 word = 4 bytes), default = configMINIMAL_STACK_SIZE
     /// @param prio osPriorityXxx
     /// @param name as null terminated string, default = null
     /// @return thread object
     /// @note cannot be called from ISR
-    template <typename Arg>
-    auto thread(void (*fn)(Arg*), Arg* arg, uint32_t stackSize = configMINIMAL_STACK_SIZE, osPriority_t prio = osPriorityNormal, const char* name = nullptr) {
+    template <typename Fn, typename Arg>
+    auto make_thread(Fn&& fn, Arg* arg, uint32_t stackSize = configMINIMAL_STACK_SIZE, osPriority_t prio = osPriorityNormal, const char* name = nullptr) {
         osThreadAttr_t attr = {};
         attr.name = name;
         attr.priority = prio;
         attr.stack_size = stackSize * 4;
-        return ThreadInterface(osThreadNew((void (*)(void*)) fn, (void*) arg, &attr)); 
+        auto fp = static_cast<void (*)(Arg*)>(etl::forward<Fn>(fn));
+        return ThreadInterface(osThreadNew(reinterpret_cast<void (*)(void*)>(fp), reinterpret_cast<void*>(arg), &attr)); 
     }
     
     /// create dynamic thread
-    /// @param fn function pointer
+    /// @param fn thread function
     /// @param stackSize in words (1 word = 4 bytes), default = configMINIMAL_STACK_SIZE
     /// @param prio osPriorityXxx
     /// @param name as null terminated string, default = null
     /// @return thread objecct
     /// @note cannot be called from ISR
-    inline auto thread(void (*fn)(), uint32_t stackSize = configMINIMAL_STACK_SIZE, osPriority_t prio = osPriorityNormal, const char* name = nullptr) {
-        return thread<void>((void (*)(void*)) fn, nullptr, stackSize, prio, name);
+    template <typename Fn>
+    auto make_thread(Fn&& fn, uint32_t stackSize = configMINIMAL_STACK_SIZE, osPriority_t prio = osPriorityNormal, const char* name = nullptr) {
+        osThreadAttr_t attr = {};
+        attr.name = name;
+        attr.priority = prio;
+        attr.stack_size = stackSize * 4;
+        auto fp = static_cast<void (*)()>(etl::forward<Fn>(fn));
+        return ThreadInterface(osThreadNew(reinterpret_cast<void (*)(void*)>(fp), nullptr, &attr));
     }
 
     /// return the current running thread object
@@ -177,7 +259,7 @@ namespace Project::etl {
 
     /// wait for flags of the current running thread to become signaled
     /// @param flags specifies the flags to wait for
-    /// @param option osFlagsWaitAny (default) or osFlagsWaitAll
+    /// @param option osFlagsWaitAny (default) or osFlagsWaitAny
     /// @param timeout default = osWaitForever
     /// @param doReset specifies wether reset the flags or not, default = true
     /// @return current thread's flags before resetting or error code if highest bit set
@@ -187,61 +269,17 @@ namespace Project::etl {
         return osThreadFlagsWait(flags, option, timeout); 
     }
 
-    /// FreeRTOS static thread
-    /// @tparam N buffer length (in words)
-    /// @note requires cmsis os v2
-    /// @note should not be declared as const
-    template <size_t N = configMINIMAL_STACK_SIZE>
-    class Thread : public ThreadInterface {
-        StaticTask_t controlBlock = {};
-        Array<uint32_t, N> buffer = {};
-
-    public:
-        /// default constructor
-        constexpr Thread() : ThreadInterface(nullptr) {}
-
-        Thread(const Thread&) = delete; ///< disable copy constructor
-        Thread(Thread&& t) = delete;    ///< disable move constructor
-
-        Thread& operator=(const Thread&) = delete;  ///< disable copy assignment
-        Thread& operator=(Thread&&) = delete;       ///< disable move assignment
-
-        /// initiate thread
-        /// @param fn function pointer
-        /// @param arg function argument pointer
-        /// @param prio osPriorityXxx, default = osPriorityNormal
-        /// @param name as null terminated string, default = null
-        /// @return osStatus
-        /// @note cannot be called from ISR
-        template <typename Arg>
-        osStatus_t init(void (*fn)(Arg*), Arg* arg, osPriority_t prio = osPriorityNormal, const char* name = nullptr) { 
-            if (id) return osError;
-            osThreadAttr_t attr = {};
-            attr.name = name;
-            attr.cb_mem = &controlBlock;
-            attr.cb_size = sizeof(controlBlock);
-            attr.stack_mem = &buffer;
-            attr.stack_size = sizeof(buffer); // in byte
-            attr.priority = prio;
-            id = osThreadNew((void (*)(void*)) fn, (void*) arg, &attr);
-            return osOK;
-        }
-
-        /// initiate thread
-        /// @param fn function pointer
-        /// @param prio osPriorityXxx, default = osPriorityNormal
-        /// @param name as null terminated string, default = null
-        /// @return osStatus
-        /// @note cannot be called from ISR
-        osStatus_t init(void (*fn)(), osPriority_t prio = osPriorityNormal, const char* name = nullptr) { 
-            return init<void>((void (*)(void*)) fn, nullptr, prio, name); 
-        }
-
-        /// detach thread
-        /// @return osStatus
-        /// @note cannot be called from ISR
-        osStatus_t deinit() { return detach(); }
-    };
+    /// wait for any flags of the current running thread to become signaled
+    /// @param timeout default = osWaitForever
+    /// @param doReset specifies wether reset the flags or not, default = true
+    /// @return current thread's flags before resetting or error code if highest bit set
+    /// @note should be called in thread function
+    inline uint32_t threadWaitFlagsAny(uint32_t timeout = osWaitForever, bool doReset = true) { 
+        uint32_t flags = (1u << 24) - 1; // all possible flags
+        uint32_t option = osFlagsWaitAny;
+        if (!doReset) option |= osFlagsNoClear;
+        return osThreadFlagsWait(flags, option, timeout); 
+    }
 
 }
 

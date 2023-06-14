@@ -32,7 +32,7 @@ namespace Project::etl {
 
         traits_type buf;
 
-        static constexpr size_t size() { return N; }
+        [[nodiscard]] static constexpr size_t size() { return N; }
         [[nodiscard]] constexpr size_t len() const { return N; }
 
         constexpr iterator data()   { return traits::ptr(buf); }

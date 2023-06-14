@@ -23,28 +23,20 @@ namespace Project::periph {
         I2C& operator=(const I2C&) = delete;  ///< disable copy assignment
         I2C& operator=(I2C&&) = delete;       ///< disable move assignment
 
-        /// set tx callback
-        /// @param fn tx callback function pointer
-        /// @param arg tx callback function argument
-        template <typename Arg>
-        void init(void (*fn)(Arg*), Arg* arg) { setTxCallback(fn, arg); }
+        void init() {}
+
+        void deinit() {}
 
         /// set tx callback
-        /// @param fn tx callback function pointer. default = null
-        void init(void (*fn) () = nullptr) { init<void>((void(*)(void*)) fn, nullptr); }
-
-        /// reset tx callback
-        void deinit() { setTxCallback(nullptr); }
-
-        /// set tx callback
-        /// @param fn tx callback function pointer
-        /// @param arg tx callback function argument
-        template <typename Arg>
-        void setTxCallback(void (*fn)(Arg*), Arg* arg) { txCallback = { (void(*)(void*))fn, (void*)arg }; }
+        /// @param fn tx callback function
+        /// @param ctx tx callback function argument
+        template <typename Fn, typename Ctx>
+        void setTxCallback(Fn&& fn, Ctx* ctx) { txCallback = Callback(etl::forward<Fn>(fn), ctx); }
 
         /// set tx callback
-        /// @param fn tx callback function pointer
-        void setTxCallback(void (*fn)()) { txCallback = { (void(*)(void*))fn, nullptr }; }
+        /// @param fn tx callback function
+        template <typename Fn>
+        void setTxCallback(Fn&& fn) { txCallback = etl::forward<Fn>(fn); }
 
         /// I2C write blocking
         /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h

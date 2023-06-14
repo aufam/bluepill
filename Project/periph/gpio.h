@@ -4,6 +4,9 @@
 #include "main.h"
 #include "cmsis_os2.h"
 
+#define GPIO_ACTIVE_HIGH Project::periph::GPIO::activeHigh
+#define GPIO_ACTIVE_LOW  Project::periph::GPIO::activeLow
+
 namespace Project::periph {
 
     struct GPIO {

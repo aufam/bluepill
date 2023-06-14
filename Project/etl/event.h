@@ -10,14 +10,16 @@ namespace Project::etl {
     /// FreeRTOS event interface.
     /// @note requires cmsis os v2
     /// @note should not be declared as const
-    struct EventInterface {
+    class EventInterface {
+    protected:
         osEventFlagsId_t id; ///< event pointer
         
+    public:
         /// default constructor
         explicit constexpr EventInterface(osEventFlagsId_t id) : id(id) {}
 
         /// move constructor
-        EventInterface(EventInterface&& e) noexcept : id(etl::move(e.id)) { e.id = nullptr; }
+        EventInterface(EventInterface&& e) noexcept : id(etl::exchange(e.id, nullptr)) {}
 
         /// move assignment
         EventInterface& operator=(EventInterface&& e) noexcept {
@@ -36,8 +38,11 @@ namespace Project::etl {
         /// return true if id is not null
         explicit operator bool() { return (bool) id; }
 
+        /// get event pointer
+        osEventFlagsId_t get() { return id; }
+
         /// name as null terminated string
-        auto getName() { return osEventFlagsGetName(id); }  
+        const char* getName() { return osEventFlagsGetName(id); }  
 
         /// set flags of this event
         /// @param flags specifies the flags that shall be set
@@ -58,12 +63,24 @@ namespace Project::etl {
 
         /// wait for flags of this event to become signaled
         /// @param flags specifies the flags to wait for
-        /// @param option osFlagsWaitAny (default) or osFlagsWaitAll
+        /// @param option osFlagsWaitAny (default) or osFlagsWaitAny
         /// @param timeout default = osWaitForever
         /// @param doReset specifies wether reset the flags or not, default = true
         /// @return flags before resetting or error code if highest bit set
         /// @note can be called from ISR if timeout == 0
         uint32_t waitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, uint32_t timeout = osWaitForever, bool doReset = true) { 
+            if (!doReset) option |= osFlagsNoClear;
+            return osEventFlagsWait(id, flags, option, timeout); 
+        }
+
+        /// wait for any flags of this event to become signaled
+        /// @param timeout default = osWaitForever
+        /// @param doReset specifies wether reset the flags or not, default = true
+        /// @return flags before resetting or error code if highest bit set
+        /// @note can be called from ISR if timeout == 0
+        uint32_t waitFlagsAny(uint32_t timeout = osWaitForever, bool doReset = true) { 
+            uint32_t flags = (1u << 24) - 1; // all possible flags
+            uint32_t option = osFlagsWaitAny;
             if (!doReset) option |= osFlagsNoClear;
             return osEventFlagsWait(id, flags, option, timeout); 
         }
@@ -76,29 +93,14 @@ namespace Project::etl {
         /// set operator
         EventInterface& operator|(uint32_t flags) { setFlags(flags); return *this; }
 
-        /// set operator
-        EventInterface& operator|=(uint32_t flags) { setFlags(flags); return *this; }
-
         /// reset operator
         EventInterface& operator&(uint32_t flags) { resetFlags(flags); return *this; }
-
-        /// reset operator
-        EventInterface& operator&=(uint32_t flags) { resetFlags(flags); return *this; }
     };
-
-    /// create dynamic event
-    /// @param name as null terminated string, default = null
-    /// @return event object
-    /// @note cannot be called from ISR
-    inline auto event(const char* name = nullptr) {
-        osEventFlagsAttr_t attr = {};
-        attr.name = name;
-        return EventInterface(osEventFlagsNew(&attr));
-    }
 
     /// FreeRTOS static mutex.
     /// @note requires cmsis os v2
     /// @note should not be declared as const
+    /// @note invoke init method before using
     class Event : public EventInterface {
         StaticEventGroup_t controlBlock = {};
 
@@ -117,12 +119,12 @@ namespace Project::etl {
         /// @return osStatus
         /// @note cannot be called from ISR
         osStatus_t init(const char* name = nullptr) {
-            if (id) return osError;
+            if (this->id) return osError;
             osEventFlagsAttr_t attr = {};
             attr.name = name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
-            id = osEventFlagsNew(&attr);
+            this->id = osEventFlagsNew(&attr);
             return osOK;
         }
 
@@ -131,6 +133,16 @@ namespace Project::etl {
         /// @note cannot be called from ISR
         osStatus_t deinit() { return detach(); }
     };
+
+    /// create dynamic event
+    /// @param name as null terminated string, default = null
+    /// @return event object
+    /// @note cannot be called from ISR
+    inline auto make_event(const char* name = nullptr) {
+        osEventFlagsAttr_t attr = {};
+        attr.name = name;
+        return EventInterface(osEventFlagsNew(&attr));
+    }
 }
 
 #endif

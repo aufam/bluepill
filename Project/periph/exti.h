@@ -24,18 +24,23 @@ namespace Project::periph {
 
         /// set exti callback of given GPIO pin
         /// @param pin GPIO_PIN_X see stm32fXxx_hal_gpio.h
-        /// @param fn function pointer
-        /// @param arg function argument
+        /// @param fn function 
         /// @param useDebounceFilter true (default): use debounce filter, false: don't
-        void setCallback(uint16_t pin, void (*fn)(void*), void* arg, bool useDebounceFilter = true);
-
-        template <typename Arg>
-        void setCallback(uint16_t pin, void (*fn)(Arg*), Arg* arg, bool useDebounceFilter = true) {
-            setCallback(pin, (void (*)(void*)) fn, (void*) arg, useDebounceFilter);
-        }
-
-        void setCallback(uint16_t pin, void (*fn)(), bool useDebounceFilter = true) {
-            setCallback(pin, (void (*)(void*)) fn, nullptr, useDebounceFilter);
+        template <typename Fn>
+        void setCallback(uint16_t pin, Fn&& fn, bool useDebounceFilter = true) {
+            auto pf = static_cast<void (*)()>(etl::forward<Fn>(fn));
+            setCallback_(pin, reinterpret_cast<void (*)(void*)>(pf), nullptr, useDebounceFilter);
+        }        
+        
+        /// set exti callback of given GPIO pin
+        /// @param pin GPIO_PIN_X see stm32fXxx_hal_gpio.h
+        /// @param fn function
+        /// @param ctx function context
+        /// @param useDebounceFilter true (default): use debounce filter, false: don't
+        template <typename Fn, typename Ctx>
+        void setCallback(uint16_t pin, Fn&& fn, Ctx* ctx, bool useDebounceFilter = true) {
+            auto pf = static_cast<void (*)(Ctx*)>(etl::forward<Fn>(fn));
+            setCallback_(pin, reinterpret_cast<void (*)(void*)>(pf), ctx, useDebounceFilter);
         }
 
         /// get the number of how many times the pin is triggered
@@ -47,7 +52,13 @@ namespace Project::periph {
         /// set pin counter
         void resetCounter(uint16_t pin) { setCounter(pin, 0); }
 
-
+    private:
+        /// set exti callback of given GPIO pin
+        /// @param pin GPIO_PIN_X see stm32fXxx_hal_gpio.h
+        /// @param fn function pointer
+        /// @param arg function argument
+        /// @param useDebounceFilter true (default): use debounce filter, false: don't
+        void setCallback_(uint16_t pin, void (*fn)(void*), void* arg, bool useDebounceFilter = true);
     };
 
     inline Exti exti;

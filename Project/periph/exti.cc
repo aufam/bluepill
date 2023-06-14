@@ -26,7 +26,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     }
 }
 
-void Exti::setCallback(uint16_t pin, void (*fn)(void*), void *arg, bool useDebounceFilter) {
+void Exti::setCallback_(uint16_t pin, void (*fn)(void*), void *arg, bool useDebounceFilter) {
     exti.isUsingDebounceFilter = useDebounceFilter ? exti.isUsingDebounceFilter | pin : exti.isUsingDebounceFilter & (~pin);
     uint32_t b = 1;
     for (auto i : etl::range(16)) if ((b << i) & pin) {

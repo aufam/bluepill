@@ -49,30 +49,12 @@ namespace Project::periph {
         CAN& operator=(const CAN&) = delete;  ///< disable copy assignment
         CAN& operator=(CAN&&) = delete;       ///< disable move assignment
 
-        /// set rx callback, start CAN and activate notification at RX FIFO message pending
-        /// @param useExtId true: use extended ID
-        /// @param fn rx callback function pointer
-        /// @param arg rx callback function argument
-        template <typename Arg>
-        void init(bool useExtId, void(*fn)(Arg*, Message&), Arg* arg) {
-            txHeader.RTR = CAN_RTR_DATA;
-            txHeader.TransmitGlobalTime = DISABLE;
-            setIdType(useExtId);
-            setRxCallback(fn, arg);
-            setFilter();
-            HAL_CAN_Stop(&hcan);
-            HAL_CAN_Start(&hcan);
-            HAL_CAN_ActivateNotification(&hcan, IT_RX_FIFO);
-        }
-
-        /// set rx callback, start CAN and activate notification at RX FIFO message pending
+        /// start CAN and activate notification at RX FIFO message pending
         /// @param useExtId true: use extended ID, false: use standard ID (default)
-        /// @param fn rx callback function pointer, default = null
-        void init(bool useExtId = false, void(*fn)(Message&) = nullptr) {
+        void init(bool useExtId = false) {
             txHeader.RTR = CAN_RTR_DATA;
             txHeader.TransmitGlobalTime = DISABLE;
             setIdType(useExtId);
-            setRxCallback(fn);
             setFilter();
             HAL_CAN_Stop(&hcan);
             HAL_CAN_Start(&hcan);
@@ -83,49 +65,43 @@ namespace Project::periph {
         void deinit() { HAL_CAN_Stop(&hcan); }
 
         /// set rx callback
-        /// @param fn rx callback function pointer
-        /// @param arg rx callback function argument
-        template <typename Arg>
-        void setRxCallback(void (*fn)(Arg*, Message&), Arg* arg) {
-            if (fn == nullptr) 
-                return;
-            
-            auto callback = Callback((void(*)(void*, Message&)) fn, (void*) arg);
+        /// @param fn rx callback function
+        /// @param ctx rx callback function context
+        template <typename Fn, typename Ctx>
+        void setRxCallback(Fn&& fn, Ctx* ctx) {
+            auto callback = Callback(etl::forward<Fn>(fn), ctx);
             if (etl::find(rxCallbackList, callback)) // return if callback is already in the list
                 return;
-            
             rxCallbackList.push(callback);
         }
 
         /// set rx callback
         /// @param fn rx callback function pointer
-        void setRxCallback(void(*fn)(Message&)) {
-            if (fn == nullptr) 
-                return;
-
-            auto callback = Callback(wrapperFunc, (void*) fn);
+        template <typename Fn>
+        void setRxCallback(Fn&& fn) {
+            auto callback = Callback(etl::forward<Fn>(fn));
             if (etl::find(rxCallbackList, callback)) // return if callback is already in the list
                 return;
-
             rxCallbackList.push(callback);
         }
 
         /// remove rx callback from the list
-        /// @param fn rx callback function pointer
-        /// @param arg rx callback function argument
-        template <typename Arg>
-        void detachRxCallback(void (*fn)(Arg*, Message&), Arg* arg) {
-            auto callback = Callback((void(*)(void*, Message&)) fn, (void*) arg);
+        /// @param fn rx callback function
+        /// @param ctx rx callback function context
+        template <typename Fn, typename Ctx>
+        void detachRxCallback(Fn&& fn, Ctx* ctx) {
+            auto callback = Callback(etl::forward<Fn>(fn), ctx);
             auto it = etl::find(rxCallbackList, callback);
-            if (it) it.detach();
+            if (it) it.erase();
         }
 
         /// remove rx callback from the list
-        /// @param fn rx callback function pointer
-        void detachRxCallback(void (*fn)(Message&)) {
-            auto callback = Callback(wrapperFunc, (void*) fn);
+        /// @param fn rx callback function
+        template <typename Fn>
+        void detachRxCallback(Fn&& fn) {
+            auto callback = Callback(etl::forward<Fn>(fn));
             auto it = etl::find(rxCallbackList, callback);
-            if (it) it.detach();
+            if (it) it.erase();
         }
 
         /// set filter by hardware
@@ -205,12 +181,6 @@ namespace Project::periph {
             setIdType(useExtId);
             setId(txId);
             return transmit(buf, len);
-        }
-
-    private:
-        static void wrapperFunc(void* fn, Message& msg) {
-            auto f = (void(*)(Message&)) fn;
-            if (f) f(msg);
         }
     };
 

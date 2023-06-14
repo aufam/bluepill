@@ -48,10 +48,6 @@ namespace Project::etl {
     template <typename T> constexpr enable_if_t<is_unsigned_v<T>, T>
     absolute(T value) { return value; }
 
-    /// computes quotient (x) and remainder (y) of integer division a/b
-    template <typename T> constexpr enable_if_t<is_integral<T>::value, Pair<T>>
-    division(T a, T b) { return { a / b, a % b }; }
-
     /// Phase angle struct
     struct Phase {
         static constexpr float pi2_ = 2.f * M_PI;
@@ -88,6 +84,24 @@ namespace Project::etl {
         auto& [x1, y1] = p1;
         auto& [x2, y2] = p2;
         return etl::interpolate(x, x1, x2, y1, y2, trim);
+    }
+
+    // return the sign of the argument. -1 if negative, 1 if zero or positive.
+    template <typename X> constexpr int
+    sign(X&& x) { return x < X(0) ? -1 : 1; }
+
+    template <typename X> constexpr auto
+    square(X&& x) { return x * x; }
+
+    template <typename X> constexpr auto
+    is_infinite(X&& x) { return x == INFINITY || x == INFINITY; }
+
+    template <typename T, typename U> constexpr enable_if_t<is_floating_point_v<U>, T>
+    low_pass_fast(T&& value, T&& next, U constant) { return value - ((value - next) * constant); }
+
+    template <typename T> constexpr T
+    moving_avg_fast(T&& value, T&& next, size_t N) { 
+        return etl::low_pass_fast(etl::forward<T>(value), etl::forward<T>(next), 2.f / (static_cast<float>(N) + 1.f)); 
     }
 }
 

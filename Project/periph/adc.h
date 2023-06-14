@@ -26,32 +26,25 @@ namespace Project::periph {
         ADCD& operator=(const ADCD&) = delete;  ///< disable copy assignment
         ADCD& operator=(ADCD&&) = delete;       ///< disable move assignment
 
-        /// start ADC DMA circular, and set complete callback
-        /// @param fn complete callback function pointer
-        /// @param arg complete callback function argument
-        template <typename Arg>
-        void init(void (*fn) (Arg*), Arg* arg) {
+        /// start ADC DMA circular
+        void init() {
             HAL_ADC_Start_DMA(&hadc, buf.begin(), N_CHANNEL);
             __HAL_DMA_DISABLE_IT(hadc.DMA_Handle, DMA_IT_HT); // disable half complete
-            setCompleteCallback(fn, arg);
         }
-
-        /// start ADC DMA circular, and set complete callback
-        /// @param fn complete callback function pointer. default = null
-        void init(void (*fn) () = nullptr) { init<void>((void(*)(void*)) fn, nullptr); }
 
         /// stop ADC DMA circular and reset callback
         void deinit() { HAL_ADC_Stop_DMA(&hadc); setCompleteCallback(nullptr); }
 
         /// set complete callback
-        /// @param fn complete callback function pointer
-        /// @param arg complete callback function argument
-        template <typename Arg>
-        void setCompleteCallback(void (*fn)(Arg*), Arg* arg) { completeCallback = { (void(*)(void*)) fn, (void*) arg }; }
+        /// @param fn complete callback function
+        /// @param ctx complete callback function context
+        template <typename Fn, typename Ctx>
+        void setCompleteCallback(Fn&& fn, Ctx* ctx) { completeCallback = CompleteCallback(etl::forward<Fn>(fn), ctx); }
         
         /// set complete callback
-        /// @param fn complete callback function pointer
-        void setCompleteCallback(void (*fn)()) { completeCallback = { (void(*)(void*)) fn, nullptr }; }
+        /// @param fn complete callback function
+        template <typename Fn>
+        void setCompleteCallback(Fn&& fn) { completeCallback = etl::forward<Fn>(fn); }
 
         /// get ADC raw value given the index
         uint32_t operator[](int index) { return buf[index]; }

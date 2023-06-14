@@ -1,5 +1,6 @@
 #include "bldc/bldc.h"
 #include "etl/array.h"
+#include "etl/numerics.h"
 #include "etl/keywords.h"
 
 using namespace Project;
@@ -48,15 +49,30 @@ fun static crc16(const uint8_t *data, uint8_t len) {
 }
 
 fun Comm::init() -> void {
-    if (uart) uart->init<Comm, void>(&Comm::uartRxCallback, this, nullptr, nullptr);
-    if (can) can->init(true, &Comm::canRxCallback, this);
+    id = 255; // id is not set
+    if (uart) {
+        uart->init();
+        uart->setRxCallback(&Comm::uartRxCallback, this);
+    }
+    if (can) {
+        can->init(true);
+        can->setRxCallback(&Comm::canRxCallback, this);
+    }
+}
+
+fun Comm::deinit() -> void {
+    if (can)
+        can->detachRxCallback(&Comm::canRxCallback, this);
 }
 
 fun Comm::uartTransmit(const uint8_t* data, uint16_t len, uint8_t packet) -> void {
     if (!uart) return;
-    var encoded = etl::array<uint8_t, 32>();
-    val n = encode(encoded.data(), data, len, packet);
-    uart->transmit(encoded.data(), n);
+    val n = encode(txBuffer.data(), data, len, packet);
+    uart->transmit(txBuffer.data(), n);
+}
+
+fun Comm::uartTransmit(const char* text) -> void {
+    uartTransmit(reinterpret_cast<const uint8_t*>(text), strlen(text), COMM_TERMINAL_CMD);
 }
 
 fun Comm::canTransmit(const uint8_t* data, uint16_t len, uint8_t packet) -> void {
@@ -87,35 +103,34 @@ fun Comm::request() -> void {
                          MASK_TACHOMETER | MASK_FAULT_CODE;
     val data = etl::byte_array_cast_be(mask);
     uartTransmit(data.data(), data.len(), COMM_GET_VALUES_SELECTIVE);
-    // in CAN mode, BLDC has to broadcast its values
 }
 
 fun Comm::setDuty(float value) -> void {
-    val data = etl::byte_array_cast_be(int(value * 100'000.f));
+    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 100'000));
     uartTransmit(data.data(), data.len(), COMM_SET_DUTY);
     canTransmit(data.data(), data.len(), CAN_PACKET_SET_DUTY);
 }
 
 fun Comm::setCurrent(float value) -> void {
-    val data = etl::byte_array_cast_be(int(value * 1'000.f));
+    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 100'000));
     uartTransmit(data.data(), data.len(), COMM_SET_CURRENT);
     canTransmit(data.data(), data.len(), CAN_PACKET_SET_CURRENT);
 }
 
 fun Comm::setCurrentRelative(float value) -> void {
-    val data = etl::byte_array_cast_be(int(value * 100'000.f));
+    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 100'000));
     uartTransmit(data.data(), data.len(), COMM_SET_CURRENT_REL);
     canTransmit(data.data(), data.len(), CAN_PACKET_SET_CURRENT_REL);
 }
 
 fun Comm::setCurrentBrake(float value) -> void {
-    val data = etl::byte_array_cast_be(int(value * 1'000.f));
+    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 100'000));
     uartTransmit(data.data(), data.len(), COMM_SET_CURRENT_BRAKE);
     canTransmit(data.data(), data.len(), CAN_PACKET_SET_CURRENT_BRAKE);
 }
 
 fun Comm::setRPM(float value) -> void {
-    val data = etl::byte_array_cast_be(int(value));
+    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 100'000));
     uartTransmit(data.data(), data.len(), COMM_SET_RPM);
     canTransmit(data.data(), data.len(), CAN_PACKET_SET_RPM);
 }
@@ -131,18 +146,20 @@ fun static cast_back2(const uint8_t* buf) {
 }
 
 fun Comm::uartRxCallback(Comm* self, const uint8_t* data, size_t len) -> void {
-    if (len < 5 or data[0] != 0x02 or data[len - 1] != 0x03) 
+    if (len <= 5 or data[0] != 0x02 or data[len - 1] != 0x03) 
         return; // error frame
 
     val crc = cast_back2(data + (len - 3));
     if (crc != crc16(data + 2, data[1])) 
         return; // error crc
 
-    val packet = data[2];
-    if (packet != COMM_GET_VALUES or packet != COMM_GET_VALUES_SELECTIVE) 
-        return; // only support COMM_GET_VALUES
-
     var buf = data + 3;
+    val packet = data[2];
+    if (packet != COMM_GET_VALUES or packet != COMM_GET_VALUES_SELECTIVE) {
+        self->packetProcess(packet, buf, data[1] - 1);
+        return;
+    }
+
     var mask = 0xFFFFFFFF;
     if (packet == COMM_GET_VALUES_SELECTIVE) {
         mask = cast_back4(buf);
@@ -150,16 +167,16 @@ fun Comm::uartRxCallback(Comm* self, const uint8_t* data, size_t len) -> void {
     }
 
     if (mask & 1 << 0) {
-        self->mosfetTemp = (float) cast_back2(buf) / 10.f;
+        self->mosfetTemp = etl::safe_truediv<float>(cast_back2(buf), 10);
         buf += 2;
     } if (mask & 1 << 1) {
         // motor temperature
         buf += 2;
     } if (mask & 1 << 2) {
-        self->outCurrent = (float) cast_back4(buf) / 100.f;
+        self->outCurrent = etl::safe_truediv<float>(cast_back4(buf), 100);
         buf += 4;
     } if (mask & 1 << 3) {
-        self->inCurrent = (float) cast_back4(buf) / 100.f;
+        self->inCurrent = etl::safe_truediv<float>(cast_back4(buf), 100);
         buf += 4;
     } if (mask & 1 << 4) {
         // avg id
@@ -168,13 +185,13 @@ fun Comm::uartRxCallback(Comm* self, const uint8_t* data, size_t len) -> void {
         // avg iq
         buf += 4;
     } if (mask & 1 << 6) {
-        self->duty = (float) cast_back2(buf) / 1000.f;
+        self->duty = etl::safe_truediv<float>(cast_back2(buf), 1000);
         buf += 2;
     } if (mask & 1 << 7) {
-        self->erpm = (float) cast_back4(buf);
+        self->erpm = etl::safe_cast<float>(cast_back4(buf));
         buf += 4;
     } if (mask & 1 << 8) {
-        self->inVoltage = (float) cast_back2(buf) / 10.f;
+        self->inVoltage = etl::safe_truediv<float>(cast_back2(buf), 10);
         buf += 2;
     } if (mask & 1 << 9) {
         // ampere hours
@@ -219,26 +236,30 @@ fun Comm::uartRxCallback(Comm* self, const uint8_t* data, size_t len) -> void {
 }
 
 fun Comm::canRxCallback(Comm* self, periph::CAN::Message& msg) -> void {
-    if (msg.IDE == CAN_ID_STD) 
+    if (msg.IDE != CAN_ID_EXT) 
         return;
-    
+
     val [id, packet] = etl::pair<uint8_t>(msg.ExtId & 0xff, msg.ExtId >> 8);
-    if (id != self->id) 
+    
+    if (self->id == 255)
+        self->id = id; // assign id if id is not set
+
+    elif (id != self->id) 
         return;
     
     switch (packet) {
         case CAN_PACKET_STATUS: 
-            self->erpm          = (float) cast_back4(msg.data);
-            self->outCurrent    = (float) cast_back2(msg.data + 4) / 10.f;
-            self->duty          = (float) cast_back2(msg.data + 6) / 1000.f;
+            self->erpm          = etl::safe_cast<float>(cast_back4(msg.data));
+            self->outCurrent    = etl::safe_truediv<float>(cast_back2(msg.data + 4), 10);
+            self->duty          = etl::safe_truediv<float>(cast_back2(msg.data + 6), 1000);
             break;
         case CAN_PACKET_STATUS_4:
-            self->mosfetTemp    = (float) cast_back2(msg.data) / 10.f; 
-            self->inCurrent     = (float) cast_back2(msg.data + 4) / 10.f;
+            self->mosfetTemp    = etl::safe_truediv<float>(cast_back2(msg.data), 10); 
+            self->inCurrent     = etl::safe_truediv<float>(cast_back2(msg.data + 4), 10);
             break;
         case CAN_PACKET_STATUS_5:
             self->tachometer    = cast_back4(msg.data); 
-            self->inVoltage     = (float) cast_back2(msg.data + 4) / 10.f;
+            self->inVoltage     = etl::safe_truediv<float>(cast_back2(msg.data + 4), 10);
             break;
         default:
             break;

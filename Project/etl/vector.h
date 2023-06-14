@@ -112,6 +112,7 @@ namespace Project::etl {
             buf[nItems] = other;
             ++nItems;
         }
+        
         Vector& operator+=(const_reference other) { append(other); return *this; }
 
         /// add all items in a container to the vector
@@ -123,6 +124,7 @@ namespace Project::etl {
             etl::copy(etl::begin(other), etl::end(other), end());
             nItems += etl::len(other);
         }
+
         template <typename Container>
         Vector& operator+=(const Container& other) { append(other); return *this; }
 
@@ -259,11 +261,11 @@ namespace Project::etl {
 
     /// create empty vector, capacity is 0
     template <typename T> constexpr auto
-    vector() { return Vector<T>{}; }
+    vector() { return Vector<T>(); }
 
     /// create empty vector and set the capacity
     template <typename T> auto
-    vector_reserve(size_t capacity) { auto v = vector<T>(); v.reserve(capacity); return v; }
+    vector_reserve(size_t capacity) { return Vector<T>(capacity); }
 
     /// type traits
     template <typename T> struct is_vector : false_type {};

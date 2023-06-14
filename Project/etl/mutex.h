@@ -8,14 +8,16 @@ namespace Project::etl {
     /// FreeRTOS mutex interface.
     /// @note requires cmsis os v2
     /// @note should not be declared as const
-    struct MutexInterface {
+    class MutexInterface {
+    protected:
         osMutexId_t id; ///< mutex pointer
 
+    public:
         /// default constructor
         explicit constexpr MutexInterface(osMutexId_t id) : id(id) {}
 
         /// move constructor
-        MutexInterface(MutexInterface&& m) : id(etl::move(m.id)) { m.id = nullptr; }
+        MutexInterface(MutexInterface&& m) : id(etl::exchange(m.id, nullptr)) {}
 
         /// move assignment
         MutexInterface& operator=(MutexInterface&& m) { 
@@ -33,6 +35,8 @@ namespace Project::etl {
         
         /// return true if id is not null
         explicit operator bool() { return (bool) id; }
+
+        osMutexId_t get() { return id; }
 
         /// lock mutex
         /// @param timeout default = osWaitForever
@@ -56,16 +60,6 @@ namespace Project::etl {
         osStatus_t detach() { unlock(); return osMutexDelete(etl::exchange(id, nullptr)); }
     };
 
-    /// create dynamic mutex
-    /// @param name string name, default null
-    /// @return mutex object
-    /// @note cannot be called from ISR
-    auto mutex(const char* name = nullptr) {
-        osMutexAttr_t attr = {};
-        attr.name = name;
-        return MutexInterface(osMutexNew(&attr));
-    }
-
     /// FreeRTOS static mutex.
     /// @note requires cmsis os v2
     /// @note should not be declared as const
@@ -87,12 +81,12 @@ namespace Project::etl {
         /// @return osStatus
         /// @note cannot be called from ISR
         osStatus_t init(const char* name = nullptr) {
-            if (id) return osError;
+            if (this->id) return osError;
             osMutexAttr_t attr = {};
             attr.name = name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
-            id = osMutexNew(&attr);
+            this->id = osMutexNew(&attr);
             return osOK;
         }
 
@@ -101,6 +95,16 @@ namespace Project::etl {
         /// @note cannot be called from ISR
         osStatus_t deinit() { return detach(); }
     };
+
+    /// create dynamic mutex
+    /// @param name string name, default null
+    /// @return mutex object
+    /// @note cannot be called from ISR
+    inline auto make_mutex(const char* name = nullptr) {
+        osMutexAttr_t attr = {};
+        attr.name = name;
+        return MutexInterface(osMutexNew(&attr));
+    }
 
     /// lock mutex when entering a scope and unlock when exiting
     struct MutexScope {
@@ -117,19 +121,19 @@ namespace Project::etl {
     /// @return mutex scope object
     /// @note cannot be called from ISR
     [[nodiscard("has to be assigned to a local scope variable")]] 
-    auto lockScope(MutexInterface& mutex) { return MutexScope(mutex.id); }
+    inline auto lockScope(MutexInterface& mutex) { return MutexScope(mutex.get()); }
 
     /// lock scope
     /// @return mutex scope object
     /// @note cannot be called from ISR
     [[nodiscard("has to be assigned to a local scope variable")]] 
-    auto lockScope(Mutex& mutex) { return MutexScope(mutex.id); }
+    inline auto lockScope(Mutex& mutex) { return MutexScope(mutex.get()); }
 
     /// lock scope
     /// @return mutex scope object
     /// @note cannot be called from ISR
     [[nodiscard("has to be assigned to a local scope variable")]] 
-    auto lockScope(osMutexId_t mutex) { return MutexScope(mutex); }
+    inline auto lockScope(osMutexId_t mutex) { return MutexScope(mutex); }
 }
 
 #endif //ETL_MUTEX_H

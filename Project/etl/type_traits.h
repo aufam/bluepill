@@ -41,6 +41,15 @@ namespace Project::etl {
     template <typename T> struct remove_reference<T&&>  { typedef T type; };
     template <typename T> using remove_reference_t = typename remove_reference<T>::type;
 
+    /// add_rvalue_reference
+    template <typename T> struct add_rvalue_reference      { typedef T&& type; };
+    template <typename T> struct add_rvalue_reference<T&>  { typedef T& type; };
+    template <typename T> struct add_rvalue_reference<T&&> { typedef T&& type; };
+    template <typename T> using add_rvalue_reference_t = typename add_rvalue_reference<T>::type;
+
+    /// declval
+    template <typename T> add_rvalue_reference_t<T> declval() noexcept;
+
     /// is_pointer
     template <typename T> struct is_pointer     : false_type {};
     template <typename T> struct is_pointer<T*> : true_type {};
@@ -355,6 +364,19 @@ namespace Project::etl {
     template <typename T> struct has_len<T[]> : true_type {};
     template <typename T, size_t N> struct has_len<T[N]> : true_type {};
     template <typename T> inline constexpr bool has_len_v = has_len<T>::value;
+
+    /// common type
+    template <typename...> struct common_type {};
+    
+    template <typename T, typename U> 
+    struct common_type<T, U> { using type = remove_reference_t<decltype(true ? etl::declval<T>() : etl::declval<U>())>; };
+
+    template <typename T, typename... Ts> 
+    struct common_type<T, Ts...> {
+        using type = conditional_t<sizeof...(Ts) == 0, T, typename common_type<T, typename common_type<Ts...>::type>::type>;
+    };
+
+    template <typename T, typename... Ts> using common_type_t = typename common_type<T, Ts...>::type;
 }
 
 #endif //ETL_TYPE_TRAITS_H

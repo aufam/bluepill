@@ -10,14 +10,16 @@ namespace Project::etl {
     /// FreeRTOS semaphore interface
     /// @note requires cmsis os v2
     /// @note should not be declared as const
-    struct SemaphoreInterface {
+    class SemaphoreInterface {
+    protected:
         osSemaphoreId_t id; ///< semaphore pointer
-        
+
+    public:
         /// default constructor
         explicit constexpr SemaphoreInterface(osSemaphoreId_t id) : id(id) {}
 
         /// move constructor
-        SemaphoreInterface(SemaphoreInterface&& s) : id(etl::move(s.id)) { s.id = nullptr; }
+        SemaphoreInterface(SemaphoreInterface&& s) : id(etl::exchange(s.id, nullptr)) {}
 
         /// move assignment
         SemaphoreInterface& operator=(SemaphoreInterface&& s) { 
@@ -35,6 +37,8 @@ namespace Project::etl {
         
         /// return true if id is not null
         explicit operator bool() { return (bool) id; }
+
+        osSemaphoreId_t get() { return id; }
 
         /// acquire semaphore token, token counter will be decreased by one
         /// @param timeout default = osWaitForever
@@ -69,18 +73,6 @@ namespace Project::etl {
         void operator--() { acquire(); }
     };
 
-    /// create dynamic semaphore
-    /// @param maxCount maximum token counter, default = 1
-    /// @param initialCount initial token counter, default = 0
-    /// @param name as null terminated string, default = null
-    /// @return semaphore object
-    /// @note cannot be called from ISR
-    inline auto semaphore(uint32_t maxCount = 1, uint32_t initialCount = 0, const char* name = nullptr) {
-        osSemaphoreAttr_t attr = {};
-        attr.name = name;
-        return SemaphoreInterface(osSemaphoreNew(maxCount, initialCount, &attr));
-    }
-
     /// FreeRTOS static semaphore
     /// @note requires cmsis os v2
     /// @note should not be declared as const
@@ -104,12 +96,12 @@ namespace Project::etl {
         /// @return osStatus
         /// @note cannot be called from ISR
         osStatus_t init(uint32_t maxCount = 1, uint32_t initialCount = 0, const char* name = nullptr) {
-            if (id) return osError;
+            if (this->id) return osError;
             osSemaphoreAttr_t attr = {};
             attr.name = name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
-            id = osSemaphoreNew(maxCount, initialCount, &attr);
+            this->id = osSemaphoreNew(maxCount, initialCount, &attr);
             return osOK;
         }
 
@@ -117,7 +109,19 @@ namespace Project::etl {
         /// @return osStatus
         /// @note cannot be called from ISR
         osStatus_t deinit() { return detach(); }
-    };
+    };    
+    
+    /// create dynamic semaphore
+    /// @param maxCount maximum token counter, default = 1
+    /// @param initialCount initial token counter, default = 0
+    /// @param name as null terminated string, default = null
+    /// @return semaphore object
+    /// @note cannot be called from ISR
+    inline auto make_semaphore(uint32_t maxCount = 1, uint32_t initialCount = 0, const char* name = nullptr) {
+        osSemaphoreAttr_t attr = {};
+        attr.name = name;
+        return SemaphoreInterface(osSemaphoreNew(maxCount, initialCount, &attr));
+    }
 }
 
 #endif

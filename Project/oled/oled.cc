@@ -32,17 +32,15 @@ int Oled::print(char ch, bool invertColor) {
 
     switch (ch) {
         case '\r': // carriage return
-            clear(column, row,
-                    screenWidth() - 1, row + fontR - 1,
-                    invertColor); // clear remaining space in this row
+            clear(column, row, screenWidth() - 1, row + fontR - 1, invertColor); // clear remaining space in this row
             setColumn(0);
             return 0;
         case '\n': // new line
-            if (row == screenRows() - fontR) return 0; // last row
-            clear(column, row,
-                    screenWidth() - 1, row + fontR - 1,
-                    invertColor); // clear remaining space in this row
-            setCursor(0, row + fontR);
+            clear(column, row, screenWidth() - 1, row + fontR - 1, invertColor); // clear remaining space in this row
+            if (row == screenRows() - fontR)
+                setCursor(0, 0);
+            else 
+                setCursor(0, row + fontR);
             return 0;
         case '\t': // horizontal tab
             for (int _ = 0; _ < 4; _++) print(' ', invertColor);

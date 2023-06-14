@@ -20,7 +20,7 @@ namespace Project::etl {
         return static_cast<T&&>(t);
     }
 
-    /// exchanges the values of a and b 
+    /// exchange the values of a and b 
     template <class T> constexpr void
     swap(T& a, T& b) {
         T temp(etl::move(a));
@@ -28,7 +28,7 @@ namespace Project::etl {
         b = etl::move(temp);
     }
 
-    /// replaces the value of obj with new_value and returns the old value of obj
+    /// replace the value of obj with new_value and returns the old value of obj
     template <typename T, typename U = T> constexpr T 
     exchange(T& obj, U&& new_value) {
         T old = etl::move(obj);
@@ -96,6 +96,18 @@ namespace Project::etl {
     
     template <typename Sequence> constexpr decltype(auto)
     next(const Sequence& gen) { return gen(); }
+
+    /// get the address of an object
+    template <typename T> constexpr T*
+    addressof(T& x) { return &x; }
+
+    /// constant rvalue reference does not have an address
+    template<class T> void
+    addressof(const T&&) = delete;
+
+    /// none typw
+    struct None_t {};
+    inline static constexpr None_t None;
 }
 
 #endif // ETL_MOVE_H

@@ -25,61 +25,40 @@ namespace Project::periph {
         PWM& operator=(const PWM&) = delete;  ///< disable move constructor
         PWM& operator=(PWM&&) = delete;       ///< disable move assignment
 
-        /// set prescaler, period, pulse, half complete callback, and full complete callback
+        /// set prescaler, period, pulse
         /// @param prescaler set TIMx->PSC
         /// @param period set TIMx->ARR
         /// @param pulse set TIMx->CCRchannel
-        /// @param halfFn half complete callback function pointer
-        /// @param halfArg half complete callback function argument
-        /// @param fullFn complete callback function pointer
-        /// @param fullArg complete callback function argument
-        template <typename HalfArg, typename FullArg>
-        void init(uint16_t prescaler, uint32_t period, uint32_t pulse, 
-                  void (*halfFn)(HalfArg*), HalfArg* halfArg, void (*fullFn)(FullArg*), FullArg* fullArg) {
+        void init(uint16_t prescaler, uint32_t period, uint32_t pulse) {
             setPrescaler(prescaler);
             setPeriod(period);
             setPulse(pulse);
-            setHalfCB(halfFn, halfArg);
-            setFullCB(fullFn, fullArg);
         }
 
-        /// set prescaler, period, pulse, half complete callback, and full complete callback
-        /// @param prescaler set TIMx->PSC
-        /// @param period set TIMx->ARR
-        /// @param pulse set TIMx->CCRchannel
-        /// @param halfFn half complete callback function pointer, default = null
-        /// @param fullFn complete callback function pointer, default = null
-        void init(uint16_t prescaler, uint32_t period, uint32_t pulse,
-                  void (*incFn)() = nullptr, void (*decFn)() = nullptr) {
-            init<void, void>(prescaler, period, pulse, (void(*)(void*)) incFn, nullptr, (void(*)(void*)) decFn, nullptr);
-        }
-
-        /// stop pwm and reset callback
-        void deinit() {
-            stop();
-            setHalfCB(nullptr);
-            setFullCB(nullptr);
-        }
+        /// stop pwm
+        void deinit() { stop(); }
 
         /// set half callback
-        /// @param fn half callback function pointer
-        /// @param arg half callback function argument
-        template <typename Arg>
-        void setHalfCB(void (*fn)(Arg*), Arg* arg) { halfCB = { (void(*)(void*)) fn, (void*) arg }; }
+        /// @param fn half callback function
+        /// @param ctx half callback function context
+        template <typename Fn, typename Ctx>
+        void setHalfCB(Fn&& fn, Ctx* ctx) { halfCB = Callback(etl::forward<Fn>(fn), ctx); }
         
         /// set half callback
-        /// @param fn half callback function pointer
-        void setHalfCB(void (*fn)()) { halfCB = { (void(*)(void*)) fn, nullptr }; }
+        /// @param fn half callback function
+        template <typename Fn>
+        void setHalfCB(Fn&& fn) { halfCB = etl::forward<Fn>(fn); }
 
         /// set full callback
-        /// @param fn full callback function pointer
-        /// @param arg full callback function argument
-        template <typename Arg>
-        void setFullCB(void (*fn)(Arg*), Arg* arg) { fullCB = { (void(*)(void*)) fn, (void*) arg }; }
+        /// @param fn full callback function
+        /// @param ctx full callback function context
+        template <typename Fn, typename Ctx>
+        void setFullCB(Fn&& fn, Ctx* ctx) { fullCB = Callback(etl::forward<Fn>(fn), ctx); }
         
         /// set full callback
-        /// @param fn full callback function pointer
-        void setFullCB(void (*fn)()) { fullCB = { (void(*)(void*)) fn, nullptr }; }
+        /// @param fn full callback function
+        template <typename Fn>
+        void setFullCB(Fn&& fn) { fullCB = etl::forward<Fn>(fn); }
 
         /// start pwm interrupt
         void start() { HAL_TIM_PWM_Start_IT(&htim, channel); }

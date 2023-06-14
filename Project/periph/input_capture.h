@@ -24,31 +24,22 @@ namespace Project::periph {
         InputCapture& operator=(const InputCapture&) = delete;  ///< disable move constructor
         InputCapture& operator=(InputCapture&&) = delete;       ///< disable move assignment
 
-        /// set callback and start TIM IC interrupt
-        /// @param fn callbcak callback function pointer
-        /// @param arg callbcak callback function argument
-        template <typename Arg>
-        void init(void (*fn)(Arg*), Arg* arg) { 
-            setCallback(fn, arg); 
-            HAL_TIM_IC_Start_IT(&htim, channel);
-        }
-
-        /// set callback and start TIM IC interrupt
-        /// @param fn callbcak callback function pointer
-        void init(void (*fn)() = nullptr) { init<void>((void(*)(void*)) fn, nullptr);}
+        /// start TIM IC interrupt
+        void init() { HAL_TIM_IC_Start_IT(&htim, channel); }
 
         /// stop TIM IC interrupt
-        void deinit() { HAL_TIM_IC_Stop_IT(&htim, channel); setCallback(nullptr); }
+        void deinit() { HAL_TIM_IC_Stop_IT(&htim, channel); }
 
         /// set callback
-        /// @param fn callback function pointer
-        /// @param arg callback function argument
-        template <typename Arg>
-        void setCallback(void (*fn)(Arg*), Arg* arg) { callback = { (void(*)(void*)) fn, (void*) arg }; }
+        /// @param fn callback function
+        /// @param ctx callback function argument
+        template <typename Fn, typename Ctx>
+        void setCallback(Fn&& fn, Ctx* ctx) { callback = Callback(etl::forward<Fn>(fn), ctx); }
 
         /// set callback
-        /// @param fn callback function pointer
-        void setCallback(void (*fn)()) { callback = { (void(*)(void*)) fn, nullptr }; }
+        /// @param fn callback function
+        template <typename Fn>
+        void setCallback(Fn&& fn) { callback = etl::forward<Fn>(fn); }
 
         /// enable interrupt
         void enable() {

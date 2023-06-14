@@ -11,20 +11,22 @@ namespace Project::etl {
     /// @note requires cmsis os v2
     /// @note should not be declared as const
     template <typename T>
-    struct QueueInterface {
+    class QueueInterface {
+    protected:
+        osMessageQueueId_t id; ///< queue pointer
+
+    public:
         typedef T value_type;
         typedef T* iterator;
         typedef const T* const_iterator;
         typedef T& reference;
         typedef const T& const_reference;
 
-        osMessageQueueId_t id; ///< queue pointer
-
         /// default constructor
         explicit constexpr QueueInterface(osMessageQueueId_t id) : id(id) {}
 
         /// move constructor
-        QueueInterface(QueueInterface&& q) : id(etl::move(q.id)) { q.id = nullptr; }
+        QueueInterface(QueueInterface&& q) : id(etl::exchange(q.id, nullptr)) {}
 
         /// move assignment
         QueueInterface& operator=(QueueInterface&& q) { 
@@ -42,6 +44,9 @@ namespace Project::etl {
         
         /// return true if id is not null
         explicit operator bool() { return (bool) id; }
+
+        /// get queue pointer
+        osMessageQueueId_t get() { return id; }
 
         /// push an item to the queue
         /// @param[in] item the item
@@ -147,19 +152,6 @@ namespace Project::etl {
 
     };
 
-    /// create dynamic queue 
-    /// @tparam T item type
-    /// @param capacity maximum number of items
-    /// @param name as null terminated string
-    /// @return queue object
-    /// @note cannot be called from ISR
-    template <typename T>
-    auto queue(uint32_t capacity, const char* name = nullptr) { 
-        osMessageQueueAttr_t attr = {};
-        attr.name = name;
-        return QueueInterface<T>(osMessageQueueNew(capacity, sizeof(T), &attr)); 
-    }
-
     /// FreeRTOS static queue
     /// @tparam T item type
     /// @tparam N maximum number of items
@@ -201,6 +193,19 @@ namespace Project::etl {
         /// @note cannot be called from ISR
         osStatus_t deinit() { return this->detach(); }
     };
+
+    /// create dynamic queue 
+    /// @tparam T item type
+    /// @param capacity maximum number of items
+    /// @param name as null terminated string
+    /// @return queue object
+    /// @note cannot be called from ISR
+    template <typename T>
+    auto make_queue(uint32_t capacity, const char* name = nullptr) { 
+        osMessageQueueAttr_t attr = {};
+        attr.name = name;
+        return QueueInterface<T>(osMessageQueueNew(capacity, sizeof(T), &attr)); 
+    }
 
 }
 
