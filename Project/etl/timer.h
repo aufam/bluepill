@@ -111,7 +111,7 @@ namespace Project::etl {
         /// @note cannot be called from ISR
         template <typename Fn>
         osStatus_t init(uint32_t interval, Fn&& fn, osTimerType_t type = osTimerPeriodic, const char *name = nullptr, bool startNow = true) {
-            if (this->id) osError;
+            if (this->id) return osError;
             osTimerAttr_t attr = {};
             attr.name = name;
             attr.cb_mem = &controlBlock;
