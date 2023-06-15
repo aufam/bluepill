@@ -105,9 +105,15 @@ namespace Project::etl {
     template<class T> void
     addressof(const T&&) = delete;
 
-    /// none typw
-    struct None_t {};
-    inline static constexpr None_t None;
+    /// none type
+    struct None {};
+    inline static constexpr None none;
+
+    template <typename T> constexpr enable_if_t<etl::is_compound_v<T>, bool>
+    operator==(const T& value, None) { return !bool(value); }
+
+    template <typename T> constexpr enable_if_t<etl::is_compound_v<T>, bool>
+    operator==(None, const T& value) { return !bool(value); }
 }
 
 #endif // ETL_MOVE_H

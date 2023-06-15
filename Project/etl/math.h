@@ -45,8 +45,49 @@ namespace Project::etl {
     /// computes absolute value
     template <typename T> constexpr enable_if_t<is_signed_v<T>, T>
     absolute(T value) { return value < T(0) ? -value : value; }
+    
     template <typename T> constexpr enable_if_t<is_unsigned_v<T>, T>
     absolute(T value) { return value; }
+
+    // return the sign of the argument. -1 if negative, 1 if zero or positive.
+    template <typename X> constexpr int
+    sign(X x) { return x < X(0) ? -1 : 1; }
+
+    template <typename X> constexpr auto
+    square(X x) { return x * x; }
+
+    template <typename X> constexpr auto
+    sqrt(X x) { return std::sqrt(x); }
+
+    template <typename X> constexpr auto
+    is_infinite(X x) { return std::isinf(x); }
+
+    template <typename X> constexpr auto
+    is_nan(X x) { return std::isnan(x); }
+
+    template <typename T, typename U> constexpr enable_if_t<is_floating_point_v<U>, T>
+    low_pass_fast(T value, T next, U constant) { return value - ((value - next) * constant); }
+
+    template <typename T> constexpr T
+    moving_avg_fast(T value, T next, size_t N) { 
+        return etl::low_pass_fast(value, next, 2.f / (static_cast<float>(N) + 1.f)); 
+    }    
+    
+    /// interpolate x given [x1, y1] and [x2, y2]
+    /// @param trim clamp the result to range (y1, y2). default = true
+    template <class X, class Y> constexpr Y
+    interpolate(const X& x, const X& x1, const X& x2, const Y& y1, const Y& y2, bool trim = true) {
+        Y res = y1 + (Y) (static_cast<float>(y2 - y1) * static_cast<float>(x - x1) / static_cast<float>(x2 - x1));
+        return trim ? etl::clamp(res, y1, y2) : res;
+    }
+
+    /// overload
+    template <class X, class Y> constexpr Y
+    interpolate(const X& x, const Pair<X,Y>& p1, const Pair<X,Y>& p2, bool trim = true) {
+        auto& [x1, y1] = p1;
+        auto& [x2, y2] = p2;
+        return etl::interpolate(x, x1, x2, y1, y2, trim);
+    }
 
     /// Phase angle struct
     struct Phase {
@@ -71,38 +112,6 @@ namespace Project::etl {
         static constexpr float
         fromFix(int8_t angle) { return static_cast<float> (angle) * pi2_ / static_cast<float> (0xFF); }
     };
-
-    /// interpolate x given [x1, y1] and [x2, y2]
-    /// @param trim clamp the result to range (y1, y2). default = true
-    template <class X, class Y> constexpr Y
-    interpolate(const X& x, const X& x1, const X& x2, const Y& y1, const Y& y2, bool trim = true) {
-        Y res = y1 + (Y) (static_cast<float>(y2 - y1) * static_cast<float>(x - x1) / static_cast<float>(x2 - x1));
-        return trim ? etl::clamp(res, y1, y2) : res;
-    }
-    template <class X, class Y> constexpr Y
-    interpolate(const X& x, const Pair<X,Y>& p1, const Pair<X,Y>& p2, bool trim = true) {
-        auto& [x1, y1] = p1;
-        auto& [x2, y2] = p2;
-        return etl::interpolate(x, x1, x2, y1, y2, trim);
-    }
-
-    // return the sign of the argument. -1 if negative, 1 if zero or positive.
-    template <typename X> constexpr int
-    sign(X&& x) { return x < X(0) ? -1 : 1; }
-
-    template <typename X> constexpr auto
-    square(X&& x) { return x * x; }
-
-    template <typename X> constexpr auto
-    is_infinite(X&& x) { return x == INFINITY || x == INFINITY; }
-
-    template <typename T, typename U> constexpr enable_if_t<is_floating_point_v<U>, T>
-    low_pass_fast(T&& value, T&& next, U constant) { return value - ((value - next) * constant); }
-
-    template <typename T> constexpr T
-    moving_avg_fast(T&& value, T&& next, size_t N) { 
-        return etl::low_pass_fast(etl::forward<T>(value), etl::forward<T>(next), 2.f / (static_cast<float>(N) + 1.f)); 
-    }
 }
 
 #endif //ETL_MATH_H

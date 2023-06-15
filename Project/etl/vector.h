@@ -1,7 +1,6 @@
 #ifndef ETL_VECTOR_H
 #define ETL_VECTOR_H
 
-#include <cstdlib>  // realloc
 #include "etl/algorithm.h"
 
 namespace Project::etl {
@@ -13,7 +12,10 @@ namespace Project::etl {
         T* buf;
         size_t nItems, capacity;
 
-        Vector(T* buffer, size_t nItems, size_t capacity) : buf(buffer), nItems(nItems), capacity(capacity) {}
+        Vector(T* buffer, size_t nItems, size_t capacity) 
+            : buf(buffer)
+            , nItems(buffer ? nItems : 0)
+            , capacity(buffer ? capacity : 0) {}
 
     public:
         typedef T value_type;
@@ -30,30 +32,35 @@ namespace Project::etl {
 
         /// construct from initializer list
         Vector(std::initializer_list<T> items) : Vector(new T[items.size()], items.size(), items.size()) {
-            etl::copy(items.begin(), items.end(), begin());
+            if (buf)
+                etl::copy(items.begin(), items.end(), begin());
         }
 
         /// copy constructor
         Vector(const Vector& v) : Vector(v.copy_alloc_(v.capacity), v.nItems, v.capacity) {}
 
         /// move constructor
-        Vector(Vector&& v) noexcept : Vector(etl::move(v.buf), etl::move(v.nItems), etl::move(v.capacity)) { v.reset_(); }
+        Vector(Vector&& v) noexcept : Vector(v.buf, v.nItems, v.capacity) { v.reset_(); }
 
         /// copy assignment
         Vector& operator=(const Vector& other) {
             if (this == &other) return *this;
-            if (nItems != other.nItems) {
-                reserve(other.capacity);
+
+            bool valid = bool(buf) && bool(other.buf);
+            if (other.nItems > nItems)
+                valid = reserve(other.nItems);
+            
+            if (valid) {
+                etl::copy(other.begin(), other.end(), buf);
                 nItems = other.nItems;
             }
-            etl::copy(other.begin(), other.end(), buf);
             return *this;
         }
 
         /// move assignment
         Vector& operator=(Vector&& other) noexcept {
             if (this == &other) return *this;
-            reset_delete_(etl::move(other.buf), etl::move(other.nItems), etl::move(other.capacity));
+            reset_delete_(other.buf, other.nItems, other.capacity);
             other.reset_();
             return *this;
         }
@@ -79,10 +86,7 @@ namespace Project::etl {
         /// get i-th item by dereference
         /// @warning it will throw error null dereference if index is not valid
         reference operator[](int i) { return is_valid_index_(i) ? buf[i] : *static_cast<iterator>(nullptr); }
-
-        /// get i-th item by dereference
-        /// @warning it will throw error null dereference if index is not valid
-        const_reference operator[](int i) const { return is_valid_index_(i) ? buf[i] : *static_cast<iterator>(nullptr); }
+        const_reference operator[](int i) const { return is_valid_index_(i) ? buf[i] : *static_cast<const_iterator>(nullptr); }
 
         /// return true if buf is not null
         explicit operator bool() { return buf != nullptr; }
@@ -184,20 +188,21 @@ namespace Project::etl {
         /// set n items to 0, capacity remains the same
         void clear() { nItems = 0; }
 
-        /// set new capacity
+        /// set new capacity, return true if success
         bool reserve(size_t newCapacity) {
             if (newCapacity == 0) {
                 reset_delete_();
                 return true;
             }
-            
-            auto newBuf = (iterator) std::realloc(buf, newCapacity);
+            else if (newCapacity == capacity) {
+                return true;
+            }
+
+            auto newBuf = copy_alloc_(newCapacity);
             if (newBuf == nullptr) 
                 return false;
 
-            buf = newBuf; 
-            nItems = etl::min(nItems, newCapacity);
-            capacity = newCapacity;
+            reset_delete_(newBuf, etl::min(nItems, newCapacity), newCapacity);
             return true;
         }
 
@@ -228,7 +233,7 @@ namespace Project::etl {
     protected:
         iterator copy_alloc_(size_t newCapacity) const {
             auto temp = new T[newCapacity];
-            etl::copy(begin(), end(), temp);
+            etl::copy(buf, buf + etl::min(newCapacity, nItems), temp);
             return temp;
         }
 

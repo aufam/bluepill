@@ -62,7 +62,7 @@ namespace Project::etl {
         constexpr Optional& operator=(U&& other) { return assign(bool(etl::addressof(other)), T(etl::forward<U>(other))); }
 
         /// assign none type
-        constexpr Optional& operator=(None_t) { valid = false; return *this; }
+        constexpr Optional& operator=(None) { valid = false; return *this; }
         
         /// check if the value is valid
         constexpr explicit operator bool() const { return valid; }
@@ -117,7 +117,7 @@ namespace Project::etl {
     optional(Arg&& arg, Args&&... args) { 
         using Arg_ = remove_const_volatile_ref_t<Arg>;
 
-        if constexpr (sizeof...(Args) == 0 && is_same_v<None_t, Arg_>)
+        if constexpr (sizeof...(Args) == 0 && is_same_v<None, Arg_>)
             return Optional<R>();
 
         // Arg is R

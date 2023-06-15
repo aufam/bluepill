@@ -38,10 +38,7 @@ namespace Project::etl {
         /// copy assignment
         Map& operator=(const Map& other) {
             if (this == &other) return *this;
-            if (this->nItems != other.nItems) {
-                this->reserve(other.capacity);
-                this->nItems = other.nItems;
-            }
+            this->reserve(other.capacity);
             etl::copy(other.begin(), other.end(), this->buf);
             return *this;
         }
@@ -128,8 +125,13 @@ namespace Project::etl {
 
         void append_force_(const K& key, const V& value) {
             auto newCapacity = this->nItems + 1;
+            // auto newBuf = new Pair<K, V>[newCapacity];
+
+            // bool valid = true;
             if (this->capacity < newCapacity)
                 this->reserve(newCapacity);
+            
+            // if (!valid) return;
             this->buf[this->nItems] = etl::pair<K, V>(key, value);
             ++this->nItems;
         }

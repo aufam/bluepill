@@ -120,6 +120,11 @@ namespace Project::etl {
     template <typename T> struct enable_if<true, T> { typedef T type; };
     template <bool B, typename T = void> using enable_if_t = typename enable_if<B, T>::type;
 
+    /// disable_if
+    template <bool B, typename T = void> struct disable_if {};
+    template <typename T> struct disable_if<false, T> { typedef T type; };
+    template <bool B, typename T = void> using disable_if_t = typename disable_if<B, T>::type;
+
     /// conditional
     template <bool B, typename T, typename F>  struct conditional { typedef T type; };
     template <typename T, typename F> struct conditional<false, T, F> { typedef F type; };
@@ -259,6 +264,12 @@ namespace Project::etl {
     struct is_trivially_copyable : public bool_constant<is_arithmetic_v<T> || is_pointer_v<T>> {};
     template<typename T> inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
 
+    /// is_true_array
+    template <typename T> struct is_true_array : false_type {};
+    template <typename T> struct is_true_array<T[]> : true_type {};
+    template <typename T, size_t N> struct is_true_array<T[N]> : true_type {};
+    template <typename T> inline constexpr bool is_true_array_v = is_true_array<T>::value;
+
     /// is_array
     template <typename T> struct is_array : false_type {};
     template <typename T> struct is_array<T[]> : true_type {};
@@ -307,7 +318,7 @@ namespace Project::etl {
     template <typename T>
     struct decay {
         typedef remove_reference_t<T> U;
-        typedef conditional_t<etl::is_array_v<U>, remove_extent_t<U>*, remove_const_volatile_t<U>> type;
+        typedef conditional_t<etl::is_true_array_v<U>, remove_extent_t<U>*, remove_const_volatile_t<U>> type;
     };
     template <typename T> using decay_t = typename decay<T>::type;
 

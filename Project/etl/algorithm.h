@@ -42,39 +42,6 @@ namespace Project::etl {
     find_if_not(Sequence&& seq, UnaryPredicate&& fn) { 
         return etl::find_if_not(etl::begin(seq), etl::end(seq), etl::forward<UnaryPredicate>(fn)); 
     }
-
-    /// check if all of the elements are equal to the given value
-    template <typename Iterator, typename T> constexpr bool
-    all(Iterator first, Iterator last, T&& value) {
-        for (; first != last; ++first) if (*first != value) return false;
-        return true;
-    }
-
-    /// check if all of the elements are equal to the given value
-    template <typename Sequence, typename T> constexpr bool
-    all(Sequence&& seq, T&& value) { return etl::all(etl::begin(seq), etl::end(seq), etl::forward<T>(value)); }
-
-    /// check if any element is equal to the given value
-    template <typename Iterator, typename T> constexpr bool
-    any(Iterator first, Iterator last, T&& value) {
-        for (; first != last; ++first) if (*first == value) return true;
-        return false;
-    }
-
-    /// check if any element is equal to the given value
-    template <typename Sequence, typename T> constexpr bool
-    any(Sequence&& seq, T&& value) { return etl::any(etl::begin(seq), etl::end(seq), etl::forward<T>(value)); }
-
-    /// check if none of the elements are equal to the given value
-    template <typename Iterator, typename T> constexpr bool
-    none(Iterator first, Iterator last, T&& value) {
-        for (; first != last; ++first) if (*first == value) return false;
-        return true;
-    }
-
-    /// check if none of the elements are equal to the given value
-    template <typename Sequence, typename T> constexpr bool
-    none(Sequence&& seq, T&& value) { return etl::none(etl::begin(seq), etl::end(seq), etl::forward<T>(value)); }
     
     /// check if all of the elements satisfy the given predicate
     template <typename Iterator, typename UnaryPredicate> constexpr bool
