@@ -264,7 +264,7 @@ namespace Project::etl {
     /// @param doReset specifies wether reset the flags or not, default = true
     /// @return current thread's flags before resetting or error code if highest bit set
     /// @note should be called in thread function
-    inline uint32_t threadWaitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, uint32_t timeout = osWaitForever, bool doReset = true) { 
+    inline FlagManager threadWaitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, uint32_t timeout = osWaitForever, bool doReset = true) { 
         if (!doReset) option |= osFlagsNoClear;
         return osThreadFlagsWait(flags, option, timeout); 
     }
@@ -274,7 +274,7 @@ namespace Project::etl {
     /// @param doReset specifies wether reset the flags or not, default = true
     /// @return current thread's flags before resetting or error code if highest bit set
     /// @note should be called in thread function
-    inline uint32_t threadWaitFlagsAny(uint32_t timeout = osWaitForever, bool doReset = true) { 
+    inline FlagManager threadWaitFlagsAny(uint32_t timeout = osWaitForever, bool doReset = true) { 
         uint32_t flags = (1u << 24) - 1; // all possible flags
         uint32_t option = osFlagsWaitAny;
         if (!doReset) option |= osFlagsNoClear;

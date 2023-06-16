@@ -7,6 +7,29 @@
 
 namespace Project::etl {
 
+    // provides a convenient way to manage and manipulate flags represented by a 32-bit unsigned integer
+    class FlagManager {
+        uint32_t flags;
+    
+    public:
+        // construct a FlagManager object with the specified initial set of flags
+        FlagManager(uint32_t flags) : flags(flags) {}
+
+        // return true if osFlagsError flag is not set
+        explicit operator bool() const { return !(flags & osFlagsError); }
+
+        // return true if osFlagsError flag is not set and the specified flags are set
+        bool operator&(uint32_t other) const { return operator bool() && (flags & other); }
+
+        // return true if osFlagsError flag is not set and the specified flags are the same as this flags
+        bool operator==(uint32_t other) const { return operator bool() && (flags == other); }
+
+        bool operator!=(uint32_t other) const { return !operator ==(other); }
+
+        // return raw flags
+        uint32_t get() const { return flags; }
+    };
+
     /// FreeRTOS event interface.
     /// @note requires cmsis os v2
     /// @note should not be declared as const
@@ -68,7 +91,7 @@ namespace Project::etl {
         /// @param doReset specifies wether reset the flags or not, default = true
         /// @return flags before resetting or error code if highest bit set
         /// @note can be called from ISR if timeout == 0
-        uint32_t waitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, uint32_t timeout = osWaitForever, bool doReset = true) { 
+        FlagManager waitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, uint32_t timeout = osWaitForever, bool doReset = true) { 
             if (!doReset) option |= osFlagsNoClear;
             return osEventFlagsWait(id, flags, option, timeout); 
         }
@@ -78,7 +101,7 @@ namespace Project::etl {
         /// @param doReset specifies wether reset the flags or not, default = true
         /// @return flags before resetting or error code if highest bit set
         /// @note can be called from ISR if timeout == 0
-        uint32_t waitFlagsAny(uint32_t timeout = osWaitForever, bool doReset = true) { 
+        FlagManager waitFlagsAny(uint32_t timeout = osWaitForever, bool doReset = true) { 
             uint32_t flags = (1u << 24) - 1; // all possible flags
             uint32_t option = osFlagsWaitAny;
             if (!doReset) option |= osFlagsNoClear;
