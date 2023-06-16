@@ -51,6 +51,7 @@ fun static crc16(const uint8_t *data, uint8_t len) {
 fun Comm::init() -> void {
     id = 255; // id is not set
     if (uart) {
+        uart->setBaudRate(115200);
         uart->init();
         uart->setRxCallback(&Comm::uartRxCallback, this);
     }
@@ -112,7 +113,7 @@ fun Comm::setDuty(float value) -> void {
 }
 
 fun Comm::setCurrent(float value) -> void {
-    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 100'000));
+    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 1000));
     uartTransmit(data.data(), data.len(), COMM_SET_CURRENT);
     canTransmit(data.data(), data.len(), CAN_PACKET_SET_CURRENT);
 }
@@ -124,13 +125,13 @@ fun Comm::setCurrentRelative(float value) -> void {
 }
 
 fun Comm::setCurrentBrake(float value) -> void {
-    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 100'000));
+    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 1000));
     uartTransmit(data.data(), data.len(), COMM_SET_CURRENT_BRAKE);
     canTransmit(data.data(), data.len(), CAN_PACKET_SET_CURRENT_BRAKE);
 }
 
 fun Comm::setRPM(float value) -> void {
-    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 100'000));
+    val data = etl::byte_array_cast_be(etl::safe_mul<int>(value, 1));
     uartTransmit(data.data(), data.len(), COMM_SET_RPM);
     canTransmit(data.data(), data.len(), CAN_PACKET_SET_RPM);
 }
@@ -155,7 +156,7 @@ fun Comm::uartRxCallback(Comm* self, const uint8_t* data, size_t len) -> void {
 
     var buf = data + 3;
     val packet = data[2];
-    if (packet != COMM_GET_VALUES or packet != COMM_GET_VALUES_SELECTIVE) {
+    if (packet != COMM_GET_VALUES and packet != COMM_GET_VALUES_SELECTIVE) {
         self->packetProcess(packet, buf, data[1] - 1);
         return;
     }

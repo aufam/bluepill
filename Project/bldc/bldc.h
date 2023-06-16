@@ -69,7 +69,7 @@ namespace Project::BLDC {
         void setCurrent(float value);
 
         /// set output current
-        /// @param value the relative current value in percent of max current, range [-1.0, 1.0]
+        /// @param value the relative current value of max current, range [-1.0, 1.0]
         void setCurrentRelative(float value);
 
         /// set brake current
