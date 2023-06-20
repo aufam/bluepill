@@ -114,7 +114,7 @@ namespace Project::etl {
     };
 
     /// create empty any object
-    auto any() { return etl::Any(); }
+    inline auto any() { return etl::Any(); }
 
     /// create any object of a given value
     template <typename T> auto
