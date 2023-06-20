@@ -2,7 +2,6 @@
 #include "etl/all.h"
 #include "periph/all.h"
 #include "oled/oled.h"
-#include "lcd/lcd.h"
 #include "etl/keywords.h"
 
 using namespace Project;
@@ -50,9 +49,9 @@ fun mainThread() {
     oled << f("heap free sz = %lu bytes\n", etl::heapGetFreeSize());
 
     for (;;) {
-        // wait evt and print it to oled
+        // wait flag and print it to oled
         val catchedFlags = etl::threadWaitFlagsAny();
-        val eventNumber = etl::count_trailing_zeros(catchedFlags);
+        val eventNumber = etl::count_trailing_zeros(catchedFlags.get());
         oled << f("%lu", eventNumber);
     }
 }
