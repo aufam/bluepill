@@ -5,6 +5,7 @@
 #include "cmsis_os2.h"
 #include "etl/event.h"
 #include "etl/array.h"
+#include "etl/time.h"
 
 namespace Project::etl {
 
@@ -82,7 +83,7 @@ namespace Project::etl {
         /// @param flags specifies the flags of the thread that shall be set
         /// @return this thread's flags after setting or error code if highest bit set
         /// @note can be called from ISR
-        uint32_t setFlags(uint32_t flags) { return osThreadFlagsSet(id, flags); }
+        FlagManager setFlags(uint32_t flags) { return osThreadFlagsSet(id, flags); }
 
         /// set flags operator
         ThreadInterface& operator|(uint32_t flags) { setFlags(flags); return *this; }
@@ -250,23 +251,23 @@ namespace Project::etl {
     /// @param flags specifies the flags of the thread that shall be reset
     /// @return current thread's flags before resetting or error code if highest bit set
     /// @note should be called in thread function
-    inline uint32_t threadResetFlags(uint32_t flags) { return osThreadFlagsClear(flags); }
+    inline FlagManager threadResetFlags(uint32_t flags) { return osThreadFlagsClear(flags); }
 
     /// get the current flags of the current running thread
     /// @return current thread's flags
     /// @note should be called in thread function
-    inline uint32_t threadGetFlags() { return osThreadFlagsGet(); }
+    inline FlagManager threadGetFlags() { return osThreadFlagsGet(); }
 
     /// wait for flags of the current running thread to become signaled
     /// @param flags specifies the flags to wait for
     /// @param option osFlagsWaitAny (default) or osFlagsWaitAny
-    /// @param timeout default = osWaitForever
+    /// @param timeout default = timeInfinite
     /// @param doReset specifies wether reset the flags or not, default = true
     /// @return current thread's flags before resetting or error code if highest bit set
     /// @note should be called in thread function
-    inline FlagManager threadWaitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, uint32_t timeout = osWaitForever, bool doReset = true) { 
+    inline FlagManager threadWaitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, etl::Time timeout = etl::timeInfinite, bool doReset = true) { 
         if (!doReset) option |= osFlagsNoClear;
-        return osThreadFlagsWait(flags, option, timeout); 
+        return osThreadFlagsWait(flags, option, timeout.tick); 
     }
 
     /// wait for any flags of the current running thread to become signaled
@@ -274,11 +275,11 @@ namespace Project::etl {
     /// @param doReset specifies wether reset the flags or not, default = true
     /// @return current thread's flags before resetting or error code if highest bit set
     /// @note should be called in thread function
-    inline FlagManager threadWaitFlagsAny(uint32_t timeout = osWaitForever, bool doReset = true) { 
+    inline FlagManager threadWaitFlagsAny(etl::Time timeout = etl::timeInfinite, bool doReset = true) { 
         uint32_t flags = (1u << 24) - 1; // all possible flags
         uint32_t option = osFlagsWaitAny;
         if (!doReset) option |= osFlagsNoClear;
-        return osThreadFlagsWait(flags, option, timeout); 
+        return osThreadFlagsWait(flags, option, timeout.tick); 
     }
 
 }

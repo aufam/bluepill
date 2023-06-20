@@ -4,6 +4,7 @@
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
 #include "etl/utility.h"
+#include "etl/time.h"
 
 namespace Project::etl {
 
@@ -41,10 +42,10 @@ namespace Project::etl {
         osSemaphoreId_t get() { return id; }
 
         /// acquire semaphore token, token counter will be decreased by one
-        /// @param timeout default = osWaitForever
+        /// @param timeout default = timeInfinite
         /// @return osStatus
         /// @note can be called from ISR if timeout == 0
-        osStatus_t acquire(uint32_t timeout = osWaitForever) { return osSemaphoreAcquire(id, timeout); }
+        osStatus_t acquire(etl::Time timeout = etl::timeInfinite) { return osSemaphoreAcquire(id, timeout.tick); }
 
         /// release semaphore token, token counter will be increased by one
         /// @return osStatus

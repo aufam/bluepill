@@ -50,22 +50,22 @@ namespace Project::etl {
 
         /// push an item to the queue
         /// @param[in] item the item
-        /// @param[in] timeout in os ticks, default 0
+        /// @param[in] timeout default timeImmediate
         /// @param[in] prio priority level, default 0 (lowest)
         /// @return osStatus
         /// @note can be called from ISR if timeout == 0
-        osStatus_t push(const_reference item, uint32_t timeout = 0, uint8_t prio = 0) { 
-            return osMessageQueuePut(id, &item, prio, timeout); 
+        osStatus_t push(const_reference item, etl::Time timeout = etl::timeImmediate, uint8_t prio = 0) { 
+            return osMessageQueuePut(id, &item, prio, timeout.tick); 
         }
         
         /// pop first item out from the queue
         /// @param[out] item first item from queue
-        /// @param[in] timeout in tick, default 0
+        /// @param[in] timeout default timeImmediate
         /// @param[out] prio pointer to priority level, default null (ignore)
         /// @return osStatus
         /// @note can be called from ISR if timeout == 0
-        osStatus_t pop(reference item, uint32_t timeout = 0, uint8_t* prio = nullptr) { 
-            return osMessageQueueGet(id, &item, prio, timeout); 
+        osStatus_t pop(reference item, etl::Time timeout = etl::timeImmediate, uint8_t* prio = nullptr) { 
+            return osMessageQueueGet(id, &item, prio, timeout.tick); 
         }
 
         /// pop first item out from the queue
@@ -73,7 +73,7 @@ namespace Project::etl {
         /// @param[out] prio pointer to priority level, default null (ignore)
         /// @return the first item
         /// @note can be called from ISR if timeout == 0
-        value_type pop(uint32_t timeout = 0, uint8_t *prio = nullptr) {
+        value_type pop(etl::Time timeout = etl::timeImmediate, uint8_t *prio = nullptr) {
             value_type item = {};
             pop(item, timeout, prio);
             return item;

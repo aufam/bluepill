@@ -71,7 +71,7 @@ namespace Project::etl {
     /// @note cannot be called from ISR
     inline void sleep(Time time) { osDelay(time.tick); }
 
-    /// sleep until specified time stamp
+    /// sleep until specified time point
     /// @note cannot be called from ISR
     inline void sleepUntil(Time time) { osDelayUntil(time.tick); }
 }

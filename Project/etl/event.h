@@ -4,6 +4,7 @@
 #include "FreeRTOS.h"
 #include "cmsis_os2.h"
 #include "etl/utility.h"
+#include "etl/time.h"
 
 namespace Project::etl {
 
@@ -71,18 +72,18 @@ namespace Project::etl {
         /// @param flags specifies the flags that shall be set
         /// @return flags after setting or error code if highest bit set
         /// @note can be called from ISR
-        uint32_t setFlags(uint32_t flags) { return osEventFlagsSet(id, flags); }
+        FlagManager setFlags(uint32_t flags) { return osEventFlagsSet(id, flags); }
 
         /// reset the specified flags of this event
         /// @param flags specifies the flags that shall be reset
         /// @return flags before resetting or error code if highest bit set
         /// @note can be called from ISR
-        uint32_t resetFlags(uint32_t flags) { return osEventFlagsClear(id, flags); }
+        FlagManager resetFlags(uint32_t flags) { return osEventFlagsClear(id, flags); }
 
         /// get the flags of this event
-        /// @return current thread's flags
+        /// @return current event's flags
         /// @note can be called from ISR
-        uint32_t getFlags() { return osEventFlagsGet(id); }
+        FlagManager getFlags() { return osEventFlagsGet(id); }
 
         /// wait for flags of this event to become signaled
         /// @param flags specifies the flags to wait for
@@ -94,6 +95,11 @@ namespace Project::etl {
         FlagManager waitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, uint32_t timeout = osWaitForever, bool doReset = true) { 
             if (!doReset) option |= osFlagsNoClear;
             return osEventFlagsWait(id, flags, option, timeout); 
+        }
+
+        /// overload
+        FlagManager waitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, etl::Time timeout = etl::timeInfinite, bool doReset = true) { 
+            return waitFlags(flags, option, timeout.tick, doReset); 
         }
 
         /// wait for any flags of this event to become signaled
@@ -108,6 +114,11 @@ namespace Project::etl {
             return osEventFlagsWait(id, flags, option, timeout); 
         }
 
+        /// overload
+        FlagManager waitFlagsAny(etl::Time timeout = etl::timeInfinite, bool doReset = true) { 
+            return waitFlagsAny(timeout.tick, doReset); 
+        }
+
         /// delete resource and set id to null
         /// @return osStatus
         /// @note cannot be called from ISR
@@ -120,7 +131,7 @@ namespace Project::etl {
         EventInterface& operator&(uint32_t flags) { resetFlags(flags); return *this; }
     };
 
-    /// FreeRTOS static mutex.
+    /// FreeRTOS static event.
     /// @note requires cmsis os v2
     /// @note should not be declared as const
     /// @note invoke init method before using

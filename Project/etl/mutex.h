@@ -39,10 +39,10 @@ namespace Project::etl {
         osMutexId_t get() { return id; }
 
         /// lock mutex
-        /// @param timeout default = osWaitForever
+        /// @param timeout default = timeInfinite
         /// @return osStatus
         /// @note cannot be called from ISR
-        osStatus_t lock(uint32_t timeout = osWaitForever) { return osMutexAcquire(id, timeout); }
+        osStatus_t lock(etl::Time timeout = etl::timeInfinite) { return osMutexAcquire(id, timeout.tick); }
 
         /// unlock mutex
         /// @return osStatus
@@ -110,8 +110,8 @@ namespace Project::etl {
     struct MutexScope {
         osMutexId_t id;
 
-        explicit MutexScope(osMutexId_t mutex, uint32_t timeout = osWaitForever) : id(mutex) {
-            osMutexAcquire(id, timeout);
+        explicit MutexScope(osMutexId_t mutex, etl::Time timeout = etl::timeInfinite) : id(mutex) {
+            osMutexAcquire(id, timeout.tick);
         }
 
         ~MutexScope() { osMutexRelease(id); }

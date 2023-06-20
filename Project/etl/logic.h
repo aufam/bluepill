@@ -6,16 +6,16 @@
 namespace Project::etl {
 
     struct Tribool {
-        enum Value { FALSE, TRUE, INDETERMINATE } value;
+        enum Value { FALSE_, TRUE_, INDETERMINATE_ } value;
 
         /// empty constructor
-        constexpr Tribool() : value(INDETERMINATE) {}
+        constexpr Tribool() : value(INDETERMINATE_) {}
 
         /// construct from boolean
-        constexpr Tribool(bool value) : value(value ? TRUE : FALSE) {}
+        constexpr Tribool(bool value) : value(value ? TRUE_ : FALSE_) {}
 
         /// cast to boolean, indeterminate value will return false
-        constexpr explicit operator bool() noexcept { return value == TRUE; }
+        constexpr explicit operator bool() noexcept { return value == TRUE_; }
     };
 
     inline static constexpr auto False = Tribool(false);
@@ -24,11 +24,11 @@ namespace Project::etl {
 
     /// check if value is indeterminate
     constexpr inline bool 
-    is_indeterminate(Tribool x) { return x.value == Tribool::INDETERMINATE; }
+    is_indeterminate(Tribool x) { return x.value == Tribool::INDETERMINATE_; }
 
     /// inverse operator
     constexpr inline Tribool 
-    operator!(Tribool x) noexcept { return x.value == Tribool::FALSE ? True : x.value == Tribool::TRUE ? False : Indeterminate; }
+    operator!(Tribool x) noexcept { return x.value == Tribool::FALSE_ ? True : x.value == Tribool::TRUE_ ? False : Indeterminate; }
 
     /// computes the logical conjunction of two tribools
     constexpr inline Tribool 

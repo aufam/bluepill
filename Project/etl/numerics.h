@@ -191,7 +191,6 @@ namespace Project::etl {
         else if constexpr (is_integral_v<RR>) {
             if (y == U(0)) return etl::safe_cast<RR>(x);
             auto remainder = etl::safe_cast<RR>(x) % etl::safe_cast<RR>(y);
-            if (remainder < 0) remainder += y;
             return etl::safe_cast<RR>(remainder);
         } 
         else {
@@ -214,6 +213,7 @@ namespace Project::etl {
             bool valid = !(std::isnan(quo) || std::isinf(quo));
             res.quo = valid ? etl::safe_cast<RR>(quo) : RR(0);
             res.rem = valid ? etl::safe_sub<RR>(x, etl::safe_mul(quo, y)) : etl::safe_cast<RR>(x);
+            if (res.rem < 0) res.rem = -res.rem;
             return res;
         }
         if constexpr (is_integral_v<RR>) {
@@ -224,13 +224,14 @@ namespace Project::etl {
 
             res.quo = static_cast<RR>(x) / static_cast<RR>(y);
             res.rem = static_cast<RR>(x) % static_cast<RR>(y);
-            if (res.rem < 0) res.rem += y;
+            if (res.rem < 0) res.rem = -res.rem;
             return res;
         } 
         else {
             detail::DivMod<RR> res {};
             res.quo = std::trunc(etl::safe_truediv(x, y));
             res.rem = etl::safe_sub(x, etl::safe_mul(res.quo, y));
+            if (res.rem < 0 && !std::isnan(res.rem)) res.rem = -res.rem;
             return res;
         }
     }
