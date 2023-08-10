@@ -2,6 +2,7 @@
 #define ETL_COMPLEX_H
 
 #include "etl/math.h"
+#include "etl/numerics.h"
 
 namespace Project::etl {
     /// complex number with integer type. real and image represent their amplitude
@@ -17,13 +18,15 @@ namespace Project::etl {
         static constexpr bool is_complex8  = is_same_v<T, int8_t >;
         static_assert(is_complex32 || is_complex16 || is_complex8, "type has to be signed integral");
 
+        typedef T value_type;
+
         T real, imag;
+        
         constexpr explicit complex(int32_t real, int32_t imag = 0)  : real(real), imag(imag) {}
         constexpr explicit complex(float real, float imag = 0)      : real(from_float_(real)), imag(from_float_(imag)) {}
         constexpr explicit complex(double real, double imag = 0)    : real(from_float_(real)), imag(from_float_(imag)) {}
         constexpr complex() : real(0), imag(0) {}
 
-        typedef T value_type;
         static constexpr T max_value = is_complex32 ? 0x7FFF'FFFF : is_complex16 ? 0x7FFF : 0x7F;
         static constexpr double max_value_f = is_complex32 ? 2147483647.0 : is_complex16 ? 32767.0 : 127.0;
 

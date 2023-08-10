@@ -30,5 +30,5 @@ fun mainThread(void *) {
 
 fun project_init() -> void {
     var static thread = Thread<256>();
-    thread.init(mainThread, null, osPriorityAboveNormal, "Main Thread");
+    thread.init(mainThread, osPriorityAboveNormal, "Main Thread");
 }
