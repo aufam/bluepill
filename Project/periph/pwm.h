@@ -102,8 +102,7 @@ namespace Project::periph {
 
     };
 
-    /// PWM generation timer 3 channel 1
-    inline PWM pwm3channel1 { htim3, TIM_CHANNEL_1 };
+    inline PWM pwm1channel1 { htim1, TIM_CHANNEL_1 };
 
 }
 

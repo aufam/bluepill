@@ -2,18 +2,20 @@
 
 using namespace Project::periph;
 
-void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
-    PWM *pwm;
-    if (htim->Instance == pwm3channel1.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) pwm = &pwm3channel1;
-    else return;
+static PWM* selector(TIM_HandleTypeDef *htim) {
+    if (htim->Instance == pwm1channel1.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+        return &pwm1channel1;
+    return nullptr;
+}
 
-    pwm->halfCB();
+void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
+    auto pwm = selector(htim);
+    if (pwm)
+        pwm->halfCB();
 }
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
-    PWM *pwm;
-    if (htim->Instance == pwm3channel1.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) pwm = &pwm3channel1;
-    else return;
-
-    pwm->fullCB();
+    auto pwm = selector(htim);
+    if (pwm)
+        pwm->fullCB();
 }

@@ -16,6 +16,13 @@ namespace Project::periph {
         uint16_t pin;           ///< GPIO_PIN_x
         bool activeMode;        ///< activeLow or activeHigh
 
+        /// empty constructor
+        constexpr GPIO() 
+        : port()
+        , pin()
+        , activeMode() {}
+
+        /// default constructor
         constexpr GPIO(GPIO_TypeDef *port, uint16_t pin, bool activeMode)
         : port(port)
         , pin(pin)
