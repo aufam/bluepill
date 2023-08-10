@@ -1,10 +1,15 @@
 #include "periph/adc.h"
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-    using namespace Project::periph;
-    ADC* adc;
-    if (hadc->Instance == adc1.hadc.Instance) adc = &adc1;
-    else return;
+using namespace Project::periph;
 
-    adc->completeCallback();
+static ADCD* getter(ADC_HandleTypeDef* hadc) {
+    if (hadc->Instance == adc1.hadc.Instance) 
+        return &adc1;
+    return nullptr;
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
+    auto adc = getter(hadc);
+    if (adc)
+        adc->completeCallback();
 }

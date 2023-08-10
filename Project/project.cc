@@ -1,6 +1,7 @@
 #include "project.h"
 #include "etl/all.h"
 #include "oled/oled.h"
+#include "periph/all.h"
 #include "etl/keywords.h"
 
 using namespace Project;
@@ -10,10 +11,10 @@ using namespace Project::etl::literals;
 
 var f = string();
 
-fun mainThread(void *) {
+fun mainThread() {
     adc1.init();
 
-    usb.setRxCallback(lambda (auto, auto buf, auto len) {
+    usb.setRxCallback(lambda (auto buf, auto len) {
         *const_cast<uint8_t*>(buf + len) = '\0'; // manually add null terminator
         val &str = string_cast<64>(buf);
         if (str is "adc")
