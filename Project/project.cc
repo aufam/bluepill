@@ -4,7 +4,7 @@
 #include "etl/keywords.h"
 
 using namespace Project;
-using namespace Project::Periph;
+using namespace Project::periph;
 using namespace Project::etl;
 using namespace Project::etl::literals;
 

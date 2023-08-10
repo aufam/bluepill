@@ -5,7 +5,7 @@
 #include "etl/array.h"
 #include "etl/function.h"
 
-namespace Project::Periph {
+namespace Project::periph {
 
     /// ADC peripheral class
     /// @note requirements: DMA circular, temperature sensor channel, vref channel

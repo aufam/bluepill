@@ -4,7 +4,7 @@
 #include "../../Core/Inc/i2c.h"
 #include "etl/function.h"
 
-namespace Project::Periph {
+namespace Project::periph {
 
     /// I2C peripheral class
     /// @note requirements: event interrupt, tx DMA

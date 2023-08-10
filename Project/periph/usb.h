@@ -6,7 +6,7 @@
 #include "etl/string.h"
 #include "etl//function.h"
 
-namespace Project::Periph {
+namespace Project::periph {
 
     /// USB peripheral class
     struct USBD {
@@ -24,11 +24,15 @@ namespace Project::Periph {
         void init(Callback::Fn rxCBFn, void *rxCBArg = nullptr) { setRxCallback(rxCBFn, rxCBArg); }
 
         /// set rx callback
-        /// @param rxCBFn receive callback function pointer
-        /// @param rxCBArg receive callback function argument
-        void setRxCallback(Callback::Fn rxCBFn, void *rxCBArg = nullptr) {
-            rxCallback = { rxCBFn, rxCBArg };
-        }
+        /// @param fn receive callback function
+        /// @param ctx receive callback function context
+        template <typename Fn, typename Ctx>
+        void setRxCallback(Fn&& fn, Ctx* ctx) { rxCallback = Callback(etl::forward<Fn>(fn), ctx); }
+
+        /// set rx callback
+        /// @param fn receive callback function
+        template <typename Fn>
+        void setRxCallback(Fn&& fn) { rxCallback = etl::forward<Fn>(fn); }
 
         /// USB transmit non blocking
         /// @param buf data buffer

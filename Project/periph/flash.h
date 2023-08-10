@@ -3,7 +3,7 @@
 
 #include "stm32f1xx_hal.h"
 
-namespace Project::Periph {
+namespace Project::periph {
 
     /// simple EEPROM emulation using flash memory
     /// @tparam T data type

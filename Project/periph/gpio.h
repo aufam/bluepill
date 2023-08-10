@@ -4,7 +4,7 @@
 #include "main.h"
 #include "cmsis_os2.h"
 
-namespace Project::Periph {
+namespace Project::periph {
 
     struct GPIO {
         enum { activeLow, activeHigh };
