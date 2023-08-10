@@ -2,14 +2,14 @@
 
 using namespace Project::periph;
 
-static ADCD* getter(ADC_HandleTypeDef* hadc) {
+static ADCD* selector(ADC_HandleTypeDef* hadc) {
     if (hadc->Instance == adc1.hadc.Instance) 
         return &adc1;
     return nullptr;
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-    auto adc = getter(hadc);
+    auto adc = selector(hadc);
     if (adc)
         adc->completeCallback();
 }

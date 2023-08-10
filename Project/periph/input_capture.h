@@ -75,11 +75,6 @@ namespace Project::periph {
         uint32_t read() { return HAL_TIM_ReadCapturedValue(&htim, channel); }
     };
 
-    inline InputCapture inputCaptureTim3Channel1 { htim3, TIM_CHANNEL_1 };
-    inline InputCapture inputCaptureTim3Channel2 { htim3, TIM_CHANNEL_2 };
-    inline InputCapture inputCaptureTim3Channel3 { htim3, TIM_CHANNEL_3 };
-    inline InputCapture inputCaptureTim3Channel4 { htim3, TIM_CHANNEL_4 };
-
 }
 
 #endif //PERIPH_INPUT_CAPTURE_H

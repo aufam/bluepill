@@ -2,32 +2,20 @@
 
 using namespace Project::periph;
 
-void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
-    PWM *pwm;
-    if (htim->Instance == pwm8channel1.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) 
-        pwm = &pwm8channel1;
-    else if (htim->Instance == pwm8channel2.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) 
-        pwm = &pwm8channel2;
-    else if (htim->Instance == pwm12channel1.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) 
-        pwm = &pwm12channel1;
-    else if (htim->Instance == pwm12channel2.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) 
-        pwm = &pwm12channel2;
-    else return;
+static PWM* selector(TIM_HandleTypeDef *htim) {
+    if (htim->Instance == pwm1channel1.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+        return &pwm1channel1;
+    return nullptr;
+}
 
-    pwm->halfCB();
+void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
+    auto pwm = selector(htim);
+    if (pwm)
+        pwm->halfCB();
 }
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
-    PWM *pwm;
-    if (htim->Instance == pwm8channel1.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) 
-        pwm = &pwm8channel1;
-    else if (htim->Instance == pwm8channel2.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) 
-        pwm = &pwm8channel2;
-    else if (htim->Instance == pwm12channel1.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) 
-        pwm = &pwm12channel1;
-    else if (htim->Instance == pwm12channel2.htim.Instance && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) 
-        pwm = &pwm12channel2;
-    else return;
-
-    pwm->fullCB();
+    auto pwm = selector(htim);
+    if (pwm)
+        pwm->fullCB();
 }
