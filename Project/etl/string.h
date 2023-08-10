@@ -22,6 +22,7 @@ namespace Project::etl {
     template <size_t N = ETL_STRING_DEFAULT_SIZE>
     class String {
         char str[N];
+
     public:
         static_assert(N > 0, "String size can't be zero");
 
@@ -36,7 +37,7 @@ namespace Project::etl {
 
         /// construct from array char with different size 
         template <size_t M>
-        constexpr String(const char (&text)[M]) : str{} {
+        constexpr String(const char (&text)[M]) : str{} { // NOLINT
             etl::copy(text, text + etl::min(N, M), begin());
             str[N - 1] = '\0';
         }
@@ -49,13 +50,14 @@ namespace Project::etl {
 
         /// copy constructor
         template <size_t M>
-        constexpr String(const String<M>& other) : str{} {
+        constexpr String(const String<M>& other) : str{} { // NOLINT
             *this = other;
         }
 
         /// copy assignment
         template <size_t M>
         constexpr String& operator=(const String<M>& other) {
+            if constexpr (N == M) if (this == &other) return *this;
             auto n = etl::min(N, M);
             etl::copy(other.begin(), other.begin() + n, str);
             str[N - 1] = '\0';
@@ -64,13 +66,14 @@ namespace Project::etl {
 
         /// move constructor
         template <size_t M>
-        constexpr String(String<M>&& other) noexcept : str{} {
+        constexpr String(String<M>&& other) noexcept : str{} { // NOLINT
             *this = etl::move(other);
         }
 
         /// move assignment
         template <size_t M>
         constexpr String& operator=(String<M>&& other) noexcept {
+            if constexpr (N == M) if (this == &other) return *this;
             auto n = etl::min(N, M);
             etl::move(other.begin(), other.begin() + n, str);
             str[N - 1] = '\0';
@@ -101,6 +104,12 @@ namespace Project::etl {
         constexpr const_iterator end()    const { return str + len(); }
         constexpr const_reference front() const { return str[0]; }
         constexpr const_reference back()  const { auto l = len(); return str[l ? l - 1 : 0]; }
+
+        constexpr Iter<iterator> iter() { return Iter(begin(), end(), 1); }
+        constexpr Iter<const_iterator> iter() const { return Iter(begin(), end(), 1); }
+
+        constexpr Iter<iterator> reversed() { return Iter(end() - 1, begin() - 1, -1); }
+        constexpr Iter<const_iterator> reversed() const { return Iter(end() - 1, begin() - 1, -1); }
 
         constexpr reference operator[](int i) {
             if (i < 0) i = len() + i;
@@ -336,7 +345,7 @@ namespace Project::etl {
         typedef const char* const_reference;
         
         /// construct from char*
-        SplitString(char* text, const char* separator = " ") {
+        explicit SplitString(char* text, const char* separator = " ") {
             for (; argc < N; argc++) {
                 argv[argc] = strtok(argc == 0 ? text : nullptr, separator);
                 if (argv[argc] == nullptr) break;
@@ -345,7 +354,7 @@ namespace Project::etl {
 
         /// construct from String
         template <size_t M = ETL_SHORT_STRING_DEFAULT_SIZE>
-        SplitString(String<M>& text, const char* separator = " ") 
+        explicit SplitString(String<M>& text, const char* separator = " ")
         : SplitString(text.data(), separator) {}
 
         size_t len() const { return argc; }

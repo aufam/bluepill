@@ -106,14 +106,26 @@ namespace Project::etl {
     addressof(const T&&) = delete;
 
     /// none type
-    struct None {};
+    struct None {
+        template <typename T, typename = enable_if_t<etl::is_compound_v<T>>>
+        constexpr operator T() const { return T{}; } // NOLINT
+    };
     inline static constexpr None none;
 
-    template <typename T> constexpr enable_if_t<etl::is_compound_v<T>, bool>
-    operator==(const T& value, None) { return !bool(value); }
+    template <typename T, typename = enable_if_t<etl::is_compound_v<T>>> constexpr bool
+    operator==(const T& value, None) {
+        if constexpr (has_empty_v<T>) return value.empty();
+        else return !bool(value);
+    }
 
-    template <typename T> constexpr enable_if_t<etl::is_compound_v<T>, bool>
-    operator==(None, const T& value) { return !bool(value); }
+    template <typename T, typename = enable_if_t<etl::is_compound_v<T>>> constexpr bool
+    operator==(None, const T& value) { return operator==(value, etl::none); }
+
+    template <typename T, typename = enable_if_t<etl::is_compound_v<T>>> constexpr bool
+    operator!=(const T& value, None) { return !operator==(value, etl::none); }
+
+    template <typename T, typename = enable_if_t<etl::is_compound_v<T>>> constexpr bool
+    operator!=(None, const T& value) { return !operator==(value, etl::none); }
 }
 
 #endif // ETL_MOVE_H

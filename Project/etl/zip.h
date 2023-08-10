@@ -12,10 +12,11 @@ namespace Project::etl {
         Tuple<Sequences...> sequences;
 
     public:
-        constexpr Zip(Sequences... seq) : sequences{seq...} {}
+        constexpr explicit Zip(Sequences... seq) : sequences{seq...} {}
 
         constexpr Zip begin() const { return *this; }
         constexpr Zip end()   const { return *this; }
+        constexpr Zip iter()  const { return *this; }
 
         constexpr explicit operator bool() const { return bool_helper_<0>(); }
 
@@ -46,10 +47,10 @@ namespace Project::etl {
         constexpr auto deref_helper_(index_sequence<i...>) { 
             // using R = Tuple<decltype(*etl::get<i>(sequences))...>; // TODO: somehow Tuple doesn't work
             static_assert (sizeof...(i) == 2 || sizeof...(i) == 3, "currently only support binary or ternary zip");
-            using R = etl::conditional_t<sizeof...(i) == 2, 
-                Pair<decltype(*etl::get<i>(sequences))...>, 
-                Triple<decltype(*etl::get<i>(sequences))...>>;
-            return R { *etl::get<i>(sequences)... }; 
+            if constexpr (sizeof...(i) == 2)
+                return Pair<decltype(*etl::get<i>(sequences))...> { *etl::get<i>(sequences)... };
+            else 
+                return Triple<decltype(*etl::get<i>(sequences))...> { *etl::get<i>(sequences)... };
         }
 
         template <size_t... i>
@@ -69,10 +70,6 @@ namespace Project::etl {
     /// create zip object from any sequence
     template <typename... Sequences> constexpr auto
     zip(Sequences&&... seq) { return Zip(etl::iter(seq)...); }
-
-    /// iter specialization for zip object
-    template <typename... Sequences> constexpr auto
-    iter(Zip<Sequences...> z) { return z; }
 }
 
 #endif // ETL_ZIP_H

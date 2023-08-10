@@ -19,6 +19,7 @@
 #define in :            // python's in (only for iterating a container)
 #define elif else if    // python's elif
 #define is ==           // python's is (should be used only for comparing a variable to a literal)
+#define is_not !=
 
 #define null nullptr    // kotlin's null
 #define var auto        // kotlin's var

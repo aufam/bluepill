@@ -4,6 +4,7 @@
 using namespace Project;
 
 fun Oxygen::init() -> void { 
+    uart.setBaudRate(9600);
     uart.init(); 
     uart.setRxCallback(rxCallback, this);
 #if PROJECT_OXYGEN_IS_USING_NOTIFIER

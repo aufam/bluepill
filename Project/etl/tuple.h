@@ -243,6 +243,9 @@ namespace Project::etl {
     apply(F&& fn, Triple<X, Y, Z>&& t) { 
         return apply_helper_(etl::forward<F>(fn), etl::forward<Triple<X, Y, Z>>(t), make_index_sequence<3>{}); 
     }
+    /// forward_as_tuple
+    template <typename... Items> constexpr Tuple<Items&&...>
+    forward_as_tuple(Items&&... items) noexcept { return Tuple<Items&&...>(etl::forward<Items>(items)...); }
 }
 
 // some specializations to enable structure binding

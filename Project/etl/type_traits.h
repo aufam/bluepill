@@ -1,6 +1,10 @@
 #ifndef ETL_TYPE_TRAITS_H
 #define ETL_TYPE_TRAITS_H
 
+#if __cplusplus < 201703L
+#error "Your code must be compiled with C++17 or later."
+#endif
+
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
@@ -296,7 +300,7 @@ namespace Project::etl {
     template <typename T>
     struct is_functor {
         template <typename U> static auto test(U* p) -> decltype(&U::operator(), void(), true_type());
-        template <typename U> static auto test(...) -> false_type;
+        template <typename U> static auto test(...) -> false_type; // NOLINT
         static constexpr bool value = decltype(test<remove_reference_t<T>>(nullptr))::value;
     };
     template <typename T> inline constexpr bool is_functor_v = is_functor<T>::value;
@@ -318,7 +322,7 @@ namespace Project::etl {
     template <typename T>
     struct decay {
         typedef remove_reference_t<T> U;
-        typedef conditional_t<etl::is_true_array_v<U>, remove_extent_t<U>*, remove_const_volatile_t<U>> type;
+        typedef conditional_t<is_true_array_v<U>, remove_extent_t<U>*, remove_const_volatile_t<U>> type;
     };
     template <typename T> using decay_t = typename decay<T>::type;
 
@@ -350,13 +354,39 @@ namespace Project::etl {
 
     template <typename... T> using index_sequence_for = make_index_sequence<sizeof...(T)>;
 
-    /// has_begin_end
-    template <typename T>
-    struct has_begin_end {
-        template <typename U> static auto test(U* ptr) -> decltype(ptr->begin() && ptr->end(), void(), true_type());
-        template <typename U> static auto test(...) -> false_type;
-        static constexpr bool value = decltype(test<remove_reference_t<T>>(nullptr))::value;
+    /// common type
+    template <typename...> struct common_type {};
+
+    template <typename T, typename U>
+    struct common_type<T, U> { using type = remove_reference_t<decltype(true ? etl::declval<T>() : etl::declval<U>())>; };
+
+    template <typename T, typename... Ts>
+    struct common_type<T, Ts...> {
+        using type = conditional_t<sizeof...(Ts) == 0, T, typename common_type<T, typename common_type<Ts...>::type>::type>;
     };
+
+    template <typename T, typename... Ts> using common_type_t = typename common_type<T, Ts...>::type;
+
+    /// is_convertible
+    template <typename T, typename U>
+    struct is_convertible {
+        static void test(U);
+        template <typename V> static auto check(int) -> decltype(test(etl::declval<V>()), void(), true_type());
+        template <typename V> static auto check(...) -> false_type;
+        static constexpr bool value = decltype(check<T>(0))::value;
+    };
+    template <typename T, typename U> inline constexpr bool is_convertible_v = is_convertible<T, U>::value;
+
+    /// a meta-function that always yields void, used for detecting valid types.
+    template <typename...> using void_t = void;
+
+    /// has_begin_end
+    template <typename T, typename = void>
+    struct has_begin_end : false_type {};
+
+    template <typename T>
+    struct has_begin_end<T, void_t<decltype(etl::declval<T>().begin()), decltype(etl::declval<T>().end())>> : true_type {};
+
     template <typename T> struct has_begin_end<std::initializer_list<T>> : true_type {};
     template <typename T> struct has_begin_end<const std::initializer_list<T>> : true_type {};
     template <typename T> struct has_begin_end<T[]> : true_type {};
@@ -364,30 +394,73 @@ namespace Project::etl {
     template <typename T> inline constexpr bool has_begin_end_v = has_begin_end<T>::value;
     
     /// has_len
-    template <typename T>
-    struct has_len {
-        template <typename U> static auto test(U* ptr) -> decltype(ptr->len(), void(), true_type());
-        template <typename U> static auto test(...) -> false_type;
-        static constexpr bool value = decltype(test<remove_reference_t<T>>(nullptr))::value;
-    };
+    template <typename T, typename = void> struct has_len : false_type {};
+    template <typename T> struct has_len<T, void_t<decltype(etl::declval<T>().len())>> : true_type {};
     template <typename T> struct has_len<std::initializer_list<T>> : true_type {};
     template <typename T> struct has_len<const std::initializer_list<T>> : true_type {};
     template <typename T> struct has_len<T[]> : true_type {};
     template <typename T, size_t N> struct has_len<T[N]> : true_type {};
     template <typename T> inline constexpr bool has_len_v = has_len<T>::value;
 
-    /// common type
-    template <typename...> struct common_type {};
-    
-    template <typename T, typename U> 
-    struct common_type<T, U> { using type = remove_reference_t<decltype(true ? etl::declval<T>() : etl::declval<U>())>; };
+    /// has_iter
+    template <typename T, typename = void> struct has_iter : false_type {};
+    template <typename T> struct has_iter<T, void_t<decltype(etl::declval<T>().iter())>> : true_type {};
+    template <typename T> inline constexpr bool has_iter_v = has_iter<T>::value;
 
-    template <typename T, typename... Ts> 
-    struct common_type<T, Ts...> {
-        using type = conditional_t<sizeof...(Ts) == 0, T, typename common_type<T, typename common_type<Ts...>::type>::type>;
-    };
+    /// has_reversed
+    template <typename T, typename = void> struct has_reversed : false_type {};
+    template <typename T> struct has_reversed<T, void_t<decltype(etl::declval<T>().reversed())>> : true_type {};
+    template <typename T> inline constexpr bool has_reversed_v = has_reversed<T>::value;
 
-    template <typename T, typename... Ts> using common_type_t = typename common_type<T, Ts...>::type;
+    /// has_empty
+    template <typename T, typename = void> struct has_empty : false_type {};
+    template <typename T> struct has_empty<T, void_t<decltype(etl::declval<T>().empty())>> : true_type {};
+    template <typename T> inline constexpr bool has_empty_v = has_empty<T>::value;
+
+    /// has_prefix_increment
+    template <typename T, typename = void> struct has_prefix_increment : bool_constant<is_pointer_v<T>> {};
+    template <typename T> struct has_prefix_increment<T, void_t<decltype(++etl::declval<T>())>> : true_type {};
+    template <typename T> inline constexpr bool has_prefix_increment_v = has_prefix_increment<T>::value;
+
+    /// has_postfix_increment
+    template <typename T, typename = void> struct has_postfix_increment : bool_constant<is_pointer_v<T>> {};
+    template <typename T> struct has_postfix_increment<T, void_t<decltype(etl::declval<T>()++)>> : true_type {};
+    template <typename T> inline constexpr bool has_postfix_increment_v = has_postfix_increment<T>::value;
+
+    /// has_prefix_decrement
+    template <typename T, typename = void> struct has_prefix_decrement : bool_constant<is_pointer_v<T>> {};
+    template <typename T> struct has_prefix_decrement<T, void_t<decltype(--etl::declval<T>())>> : true_type {};
+    template <typename T> inline constexpr bool has_prefix_decrement_v = has_prefix_decrement<T>::value;
+
+    /// has_postfix_decrement
+    template <typename T, typename = void> struct has_postfix_decrement : bool_constant<is_pointer_v<T>> {};
+    template <typename T> struct has_postfix_decrement<T, void_t<decltype(etl::declval<T>()--)>> : true_type {};
+    template <typename T> inline constexpr bool has_postfix_decrement_v = has_postfix_decrement<T>::value;
+
+    /// has_operator_plus_int
+    template <typename T, typename = void> struct has_operator_plus_int : bool_constant<is_pointer_v<T>> {};
+    template <typename T> struct has_operator_plus_int<T, void_t<decltype(etl::declval<T>() + 1)>> : true_type {};
+    template <typename T> inline constexpr bool has_operator_plus_int_v = has_operator_plus_int<T>::value;
+
+    /// has_operator_minus_int
+    template <typename T, typename = void> struct has_operator_minus_int : bool_constant<is_pointer_v<T>> {};
+    template <typename T> struct has_operator_minus_int<T, void_t<decltype(etl::declval<T>() - 1)>> : true_type {};
+    template <typename T> inline constexpr bool has_operator_minus_int_v = has_operator_minus_int<T>::value;
+
+    /// has_operator_minus
+    template <typename T, typename = void> struct has_operator_minus : bool_constant<is_pointer_v<T>> {};
+    template <typename T> struct has_operator_minus<T, void_t<decltype(etl::declval<T>() - etl::declval<T>())>> : true_type {};
+    template <typename T> inline constexpr bool has_operator_minus_v = has_operator_minus<T>::value;
+
+    /// has_operator_dereference
+    template <typename T, typename = void> struct has_operator_dereference : bool_constant<is_pointer_v<T>> {};
+    template <typename T> struct has_operator_dereference<T, void_t<decltype(*etl::declval<T>())>> : true_type {};
+    template <typename T> inline constexpr bool has_operator_dereference_v = has_operator_dereference<T>::value;
+
+    /// is_iterator
+    template <typename T> struct is_iterator : bool_constant<has_prefix_increment_v<T> && has_operator_dereference_v<T>> {};
+    template <typename T> inline constexpr bool is_iterator_v = is_iterator<T>::value;
+
 }
 
 #endif //ETL_TYPE_TRAITS_H

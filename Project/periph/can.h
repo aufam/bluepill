@@ -92,7 +92,7 @@ namespace Project::periph {
         void detachRxCallback(Fn&& fn, Ctx* ctx) {
             auto callback = Callback(etl::forward<Fn>(fn), ctx);
             auto it = etl::find(rxCallbackList, callback);
-            if (it) it.erase();
+            if (it) rxCallbackList.pop_at(it - rxCallbackList.begin());
         }
 
         /// remove rx callback from the list

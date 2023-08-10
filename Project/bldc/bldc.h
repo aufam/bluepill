@@ -12,7 +12,7 @@ namespace Project::BLDC {
     /// @note in UART mode, you have to invoke request() method periodically
     /// @note activating both modes is not necessary
     struct Comm : public Values {
-        using PacketProcess = etl::Function<void(uint8_t packet, const uint8_t* data, uint16_t len), void*>;
+        using PacketProcess = etl::Function<void(uint8_t packet, const uint8_t* data, size_t len), void*>;
 
         periph::CAN* can;
         periph::UART* uart;
@@ -37,13 +37,20 @@ namespace Project::BLDC {
         /// @param len data length
         /// @param packet COMM_PACKET_ID
         /// @return number of bytes written to buffer
-        static size_t encode(uint8_t* buffer, const uint8_t* data, uint16_t len, uint8_t packet);
+        static size_t encode(uint8_t* buffer, const uint8_t* data, size_t len, uint8_t packet);
+
+        /// decode data
+        /// @param[in] data input data
+        /// @param[in, out] len data (in) and decoded data (out) length 
+        /// @param[out] packet COMM_PACKET_ID
+        /// @return pointer to the decoded data or null
+        static const uint8_t* decode(const uint8_t* data, size_t& len, uint8_t& packet);
 
         /// encode data and transmit via uart non blocking
         /// @param[in] data input data
         /// @param len data length
         /// @param packet COMM_PACKET_ID
-        void uartTransmit(const uint8_t* data, uint16_t len, uint8_t packet);
+        void uartTransmit(const uint8_t* data, size_t len, uint8_t packet);
 
         /// encode data and transmit via uart non blocking
         /// @param[in] data input data
@@ -55,7 +62,7 @@ namespace Project::BLDC {
         /// @param[in] data input data
         /// @param len data length, max 8 bytes
         /// @param packet CAN_PACKET_ID
-        void canTransmit(const uint8_t* data, uint16_t len, uint8_t packet);
+        void canTransmit(const uint8_t* data, size_t len, uint8_t packet);
 
         /// request BLDC values
         void request();

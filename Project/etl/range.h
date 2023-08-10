@@ -1,39 +1,70 @@
 #ifndef ETL_RANGE_H
 #define ETL_RANGE_H
 
-#include "etl/utility_basic.h"
+#include "etl/iter.h"
 
 namespace Project::etl {
 
     /// python-like range
-    template <typename T, typename U = remove_unsigned_t<T>>
+    template <typename T>
     class Range {
-        T first, last;
+        typedef remove_unsigned_t<T> U;
+        T start, stop;
         U step;
 
     public:
-        constexpr Range(T first, T last, U step) : first(first), last(last), step(step) {}
+//        friend class RangeHelper;
 
-        [[nodiscard]] 
-        constexpr size_t len() const { return operator bool() ? (last - first) / step : 0; }
-        
+        constexpr Range(T start, T stop, U step) : start(start), stop(stop), step(step) {}
+
         constexpr Range begin() const { return *this; }
         constexpr Range end()   const { return *this; }
 
-        constexpr explicit operator bool() const { return step == U(0) ? false : step < U(0) ? first > last : first < last; }
+        constexpr Range iter()      const { return *this; }
+        constexpr Range reversed()  const { return Range(stop - step, start - step, -step); }
+
+        constexpr size_t len() const { return operator bool() ? (stop - start) / step : 0; }
+
+        constexpr T operator[](int index) const {
+            auto n = int(len());
+            if (index < 0) index += n;
+            if (index < 0 || index >= n) return T(0);
+            return start + T(index) * step;
+        }
+
+        /// slice operator
+        constexpr Range operator()(int start, int stop, int step = 1) const {
+            auto n = int(len());
+            if (start < 0) start += n;
+            if (start < 0 || start >= n) return Range(this->start, this->start, U(0));
+            auto first = this->start + T(start) * this->step;
+
+            if (stop < 0) stop += n;
+            if (stop < 0 || stop >= n) return Range(first, first, U(0));
+            auto last = this->start + T(stop) * this->step;
+
+            return Range(first, last, step * this->step);
+        }
+
+        constexpr explicit operator bool() const {
+            return step == U(0) ? false : step < U(0) ? start > stop : start < stop;
+        }
+
         constexpr bool operator!=(const Range&) const { return operator bool(); }
-        constexpr void operator++() { first += step; }
 
-        constexpr T operator*() { return first; }
+        /// increment operator
+        constexpr void operator++() { start += step; }
 
+        /// dereference operator
+        constexpr T operator*() { return start; }
+
+        /// next operator
         constexpr T operator()() { 
             auto valid = operator bool();
-            auto res = valid ? first : T();
+            auto res = valid ? start : T();
             if (valid) operator++();
             return res;
         }
-
-        void setStep(U s) { step = s; }
     };
 
     /// create range object
@@ -43,10 +74,6 @@ namespace Project::etl {
     /// create range object
     template <typename T> constexpr enable_if_t<is_arithmetic_v<T>, Range<T>>
     range(T first, T last, remove_unsigned_t<T> step = 1) { return Range(first, last, step); }
-
-    /// iter specialization for range object
-    template <typename T> constexpr auto
-    iter(Range<T> r) { return r; }
-} 
+}
 
 #endif // ETL_RANGE_H

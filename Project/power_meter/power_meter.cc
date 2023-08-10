@@ -50,6 +50,15 @@ fun PowerMeter::deinit() -> void {
     notifier.deinit();
 }
 
+fun PowerMeter::start(Values& buffer) -> void {
+    this->buffer = &buffer;
+    timer.init(timeout, lambda (PowerMeter* self) {
+        val bufferSend = makeBufferSend(self->address, CMD_READ_INPUT_REGISTER, REG_VOLTAGE, REG_TOTAL);
+        memcpy(self->uart.rxBuffer.data(), bufferSend.data(), bufferSend.len());
+        self->uart.transmit(self->uart.rxBuffer.data(), bufferSend.len());
+    }, this);
+}
+
 fun PowerMeter::read() -> PowerMeter::Values {
     // request all values
     val bufferSend = makeBufferSend(address, CMD_READ_INPUT_REGISTER, REG_VOLTAGE, REG_TOTAL);
@@ -61,17 +70,7 @@ fun PowerMeter::read() -> PowerMeter::Values {
         return values; /// return if timeout
 
     /// decode
-    var buf = uart.rxBuffer.data();
-    var safe_multiply = etl::safe_mul<float, uint32_t, float>;
-
-    values.voltage      = safe_multiply(decode(buf, REG_VOLTAGE), .1f);
-    values.current      = safe_multiply(decode(buf, REG_CURRENT_L) | decode(buf, REG_CURRENT_H) << 24, .001f);
-    values.power        = safe_multiply(decode(buf, REG_POWER_L)   | decode(buf, REG_POWER_H)   << 24, .1f);
-    values.energy       = safe_multiply(decode(buf, REG_ENERGY_L)  | decode(buf, REG_ENERGY_H)  << 24, 1.f);
-    values.frequency    = safe_multiply(decode(buf, REG_FREQUENCY), .1f);
-    values.pf           = safe_multiply(decode(buf, REG_PF), .01f);
-    values.alarm        = decode(buf, REG_ALARM) == 0xFFFF;
-    
+    decode(uart.rxBuffer.data(), values);
     return values;
 }
 
@@ -155,18 +154,35 @@ fun PowerMeter::decode(const uint8_t* buf, uint32_t reg) -> uint32_t {
     return etl::byte_array_cast_back_le<uint16_t>(data); 
 }
 
+fun PowerMeter::decode(const uint8_t* buf, Values& values) -> void {
+    var safe_multiply = etl::safe_mul<float, uint32_t, float>;
+    values.voltage      = safe_multiply(decode(buf, REG_VOLTAGE), .1f);
+    values.current      = safe_multiply(decode(buf, REG_CURRENT_L) | decode(buf, REG_CURRENT_H) << 16, .001f);
+    values.power        = safe_multiply(decode(buf, REG_POWER_L)   | decode(buf, REG_POWER_H)   << 16, .1f);
+    values.energy       = safe_multiply(decode(buf, REG_ENERGY_L)  | decode(buf, REG_ENERGY_H)  << 16, 1.f);
+    values.frequency    = safe_multiply(decode(buf, REG_FREQUENCY), .1f);
+    values.pf           = safe_multiply(decode(buf, REG_PF), .01f);
+    values.alarm        = decode(buf, REG_ALARM) == 0xFFFF;
+}
+
 fun PowerMeter::rxCallback(PowerMeter *self, const uint8_t* buf, size_t len) -> void {
-    (void) buf;
     val values = START_BYTES + (REG_TOTAL * 2) + STOP_BYTES;
     val getter = START_BYTES + 2 + STOP_BYTES;
     val setter = BufferSend::size();
     val reset  = 4;
     val calib  = 6;
 
-    if (len == values) self->notifier | FLAG_VALUES;
-    if (len == getter) self->notifier | FLAG_GETTER;
-    if (len == setter) self->notifier | FLAG_SETTER;
-    if (len == reset)  self->notifier | FLAG_SETTER;
-    if (len == calib)  self->notifier | FLAG_SETTER;
+    if (len == values && self->buffer) 
+        decode(buf, *self->buffer);
+    elif (len == values) 
+        self->notifier | FLAG_VALUES;
+    elif (len == getter) 
+        self->notifier | FLAG_GETTER;
+    elif (len == setter) 
+        self->notifier | FLAG_SETTER;
+    elif (len == reset)  
+        self->notifier | FLAG_SETTER;
+    elif (len == calib)  
+        self->notifier | FLAG_SETTER;
 }
 

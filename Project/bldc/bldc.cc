@@ -1,6 +1,7 @@
 #include "bldc/bldc.h"
 #include "etl/array.h"
 #include "etl/numerics.h"
+#include "etl/bit.h"
 #include "etl/keywords.h"
 
 using namespace Project;
@@ -48,6 +49,16 @@ fun static crc16(const uint8_t *data, uint8_t len) {
     return res;
 }
 
+/// cast buffer to int32_t big endian
+fun static cast_back4(const uint8_t* buf) {
+    return etl::byte_array_cast_back_be<int32_t>(*reinterpret_cast<const etl::Array<uint8_t, 4>*>(buf));
+}
+
+/// cast buffer to int16_t big endian
+fun static cast_back2(const uint8_t* buf) {
+    return etl::byte_array_cast_back_be<int16_t>(*reinterpret_cast<const etl::Array<uint8_t, 2>*>(buf));
+}
+
 fun Comm::init() -> void {
     id = 255; // id is not set
     if (uart) {
@@ -66,7 +77,7 @@ fun Comm::deinit() -> void {
         can->detachRxCallback(&Comm::canRxCallback, this);
 }
 
-fun Comm::uartTransmit(const uint8_t* data, uint16_t len, uint8_t packet) -> void {
+fun Comm::uartTransmit(const uint8_t* data, size_t len, uint8_t packet) -> void {
     if (!uart) return;
     val n = encode(txBuffer.data(), data, len, packet);
     uart->transmit(txBuffer.data(), n);
@@ -76,17 +87,19 @@ fun Comm::uartTransmit(const char* text) -> void {
     uartTransmit(reinterpret_cast<const uint8_t*>(text), strlen(text), COMM_TERMINAL_CMD);
 }
 
-fun Comm::canTransmit(const uint8_t* data, uint16_t len, uint8_t packet) -> void {
+fun Comm::canTransmit(const uint8_t* data, size_t len, uint8_t packet) -> void {
     if (!can) return;
     can->transmit(true, id | packet << 8, data, len);
 }
 
-fun Comm::encode(uint8_t* buffer, const uint8_t* data, uint16_t len, uint8_t packet) -> size_t {
+fun Comm::encode(uint8_t* buffer, const uint8_t* data, size_t len, uint8_t packet) -> size_t {
     size_t index = 0;
     buffer[index++] = 0x02;
     buffer[index++] = len + 1; // including packet id
     buffer[index++] = packet;
-    memcpy(buffer + index, data, len);
+
+    if (buffer + index != data)
+        memcpy(buffer + index, data, len);
     index += len;
 
     val crc = crc16(buffer + 2, len + 1);
@@ -95,6 +108,19 @@ fun Comm::encode(uint8_t* buffer, const uint8_t* data, uint16_t len, uint8_t pac
     buffer[index++] = 0x03;
     buffer[index] = '\0';
     return index;
+}
+
+fun Comm::decode(const uint8_t* data, size_t& len, uint8_t& packet) -> const uint8_t* {
+    if (len <= 5 or data[0] != 0x02 or data[1] == 0 or data[len - 1] != 0x03) 
+        return nullptr; // error frame
+
+    val crc = etl::bit_cast<uint16_t>(cast_back2(data + (len - 3)));
+    if (crc != crc16(data + 2, data[1])) 
+        return nullptr; // error crc
+
+    len = data[1] - 1;
+    packet = data[2];
+    return data + 3;
 }
 
 fun Comm::request() -> void { 
@@ -136,28 +162,12 @@ fun Comm::setRPM(float value) -> void {
     canTransmit(data.data(), data.len(), CAN_PACKET_SET_RPM);
 }
 
-/// cast buffer to int32_t big endian
-fun static cast_back4(const uint8_t* buf) {
-    return etl::byte_array_cast_back_be<int32_t>(*reinterpret_cast<const etl::Array<uint8_t, 4>*>(buf));
-}
-
-/// cast buffer to int16_t big endian
-fun static cast_back2(const uint8_t* buf) {
-    return etl::byte_array_cast_back_be<int16_t>(*reinterpret_cast<const etl::Array<uint8_t, 2>*>(buf));
-}
-
 fun Comm::uartRxCallback(Comm* self, const uint8_t* data, size_t len) -> void {
-    if (len <= 5 or data[0] != 0x02 or data[len - 1] != 0x03) 
-        return; // error frame
+    uint8_t packet;
+    var buf = decode(data, len, packet);
 
-    val crc = cast_back2(data + (len - 3));
-    if (crc != crc16(data + 2, data[1])) 
-        return; // error crc
-
-    var buf = data + 3;
-    val packet = data[2];
     if (packet != COMM_GET_VALUES and packet != COMM_GET_VALUES_SELECTIVE) {
-        self->packetProcess(packet, buf, data[1] - 1);
+        self->packetProcess(packet, buf, len);
         return;
     }
 

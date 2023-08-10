@@ -43,7 +43,7 @@ namespace Project::etl {
         Optional(const Optional&) = default;
 
         /// move construct from another Optional<T>
-        Optional(Optional&&) = default;
+        Optional(Optional&&) noexcept = default;
 
         /// copy assign from original type
         constexpr Optional& operator=(const_reference other) { return assign(bool(etl::addressof(other)), other); }
@@ -55,7 +55,7 @@ namespace Project::etl {
         Optional& operator=(const Optional&) = default;
 
         /// move assign from another Optional<T>
-        Optional& operator=(Optional&&) = default;
+        Optional& operator=(Optional&&) noexcept = default;
 
         /// move/copy assign from another convertible type U
         template <typename U>

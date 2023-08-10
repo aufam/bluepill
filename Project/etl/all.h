@@ -24,6 +24,7 @@
 #include "etl/memory.h"
 #include "etl/numerics.h"
 #include "etl/optional.h"
+#include "etl/placeholder.h"
 #include "etl/ref.h"
 #include "etl/string.h"
 #include "etl/tuple.h"

@@ -15,10 +15,15 @@ namespace Project::etl {
         constexpr Ref() : ptr(nullptr) {}
 
         /// default constructor
-        constexpr explicit Ref(T& t) : ptr(etl::addressof(t)) {}
+        constexpr Ref(T& t) : ptr(etl::addressof(t)) {} // NOLINT
+
+        /// default constructor
+        constexpr Ref(T* t) : ptr(t) {} // NOLINT
 
         /// disable rvalue constructor
         Ref(T&& t) = delete;
+
+        constexpr explicit operator bool() { return bool(ptr); }
 
         /// dereference operator
         constexpr const T& operator*() const { return *ptr; }
@@ -48,6 +53,12 @@ namespace Project::etl {
 
     template <typename T> constexpr auto
     ref_const(const T& value) { return Ref<const T>(value); }
+
+    template <typename T> constexpr auto
+    ref(T* value) { return Ref<T>(value); }
+
+    template <typename T> constexpr auto
+    ref_const(const T* value) { return Ref<const T>(value); }
 
     template <typename T> void ref(const T&&) = delete;
 

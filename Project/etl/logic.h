@@ -1,7 +1,7 @@
 #ifndef ETL_LOGIC_H
 #define ETL_LOGIC_H
 
-#include "etl/type_traits.h"
+#include "etl/utility_basic.h"
 
 namespace Project::etl {
 
@@ -14,8 +14,11 @@ namespace Project::etl {
         /// construct from boolean
         constexpr Tribool(bool value) : value(value ? TRUE_ : FALSE_) {}
 
+        /// disable none type conversion
+        Tribool(None) = delete;
+
         /// cast to boolean, indeterminate value will return false
-        constexpr explicit operator bool() noexcept { return value == TRUE_; }
+        constexpr explicit operator bool() const noexcept { return value == TRUE_; }
     };
 
     inline static constexpr auto False = Tribool(false);
@@ -77,6 +80,12 @@ namespace Project::etl {
     /// overload
     constexpr inline Tribool
     operator!=(bool x, Tribool y) { return y != Tribool(x); }
+
+    /// disable none type comparison
+    inline void operator==(Tribool, None) = delete;
+    inline void operator==(None, Tribool) = delete;
+    inline void operator!=(Tribool, None) = delete;
+    inline void operator!=(None, Tribool) = delete;
 }
 
 #endif

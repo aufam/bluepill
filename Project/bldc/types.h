@@ -38,11 +38,11 @@ namespace Project::BLDC {
     struct Values {
         int id;                     ///< controller id
         float inVoltage;            ///< in volt
-        float mosfetTemp;           ///< in C
-        float outCurrent;           ///< in ampere
-        float inCurrent;            ///< in ampere
-        float erpm;                 ///< in rpm
         float duty;                 ///< in range [-1.0, 1.0]
+        float inCurrent;            ///< in ampere
+        float outCurrent;           ///< in ampere
+        float mosfetTemp;           ///< in C
+        float erpm;                 ///< in rpm
         int tachometer;             ///< relative position in step
         MC_FAULT_CODE faultCode;
 

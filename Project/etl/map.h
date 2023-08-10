@@ -63,10 +63,11 @@ namespace Project::etl {
         const V& get(const K& key) const { return *get_value_ptr_(key); }
 
         /// get a value given the key. if the key does not exist, append new pair and return default constructed V
-        V& operator[](const K& key) {
+        template <typename KK>
+        V& operator[](KK&& key) {
             auto res = get_value_ptr_(key);
             if (res) return *res;
-            append_force_(key, Value{});
+            append_force_(etl::forward<KK>(key), Value{});
             return this->back().y;
         }
 
@@ -123,16 +124,14 @@ namespace Project::etl {
             return res;
         }
 
-        void append_force_(const K& key, const V& value) {
+        template <typename KK, typename VV>
+        void append_force_(KK&& key, VV&& value) {
             auto newCapacity = this->nItems + 1;
-            // auto newBuf = new Pair<K, V>[newCapacity];
 
-            // bool valid = true;
             if (this->capacity < newCapacity)
                 this->reserve(newCapacity);
             
-            // if (!valid) return;
-            this->buf[this->nItems] = etl::pair<K, V>(key, value);
+            this->buf[this->nItems] = etl::pair<K, V>(K(etl::forward<KK>(key)), V(etl::forward<VV>(value)));
             ++this->nItems;
         }
     };

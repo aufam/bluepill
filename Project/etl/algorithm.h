@@ -120,26 +120,23 @@ namespace Project::etl {
 
     /// check if all elements of two sequences are the same
     template <typename Sequence1, typename Sequence2> constexpr bool
-    compare_all(Sequence1&& seq1, Sequence2&& seq2) {
-        if constexpr (has_len_v<remove_reference_t<Sequence1>> && has_len_v<remove_reference_t<Sequence2>>)
-            if (etl::len(seq1) != etl::len(seq2)) 
-                return false;
-
-        for (auto [x, y] : etl::zip(seq1, seq2)) if (x != y) return false;
-        return true;
-    }
+    compare_all(Sequence1&& seq1, Sequence2&& seq2) { return operator==(etl::forward<Sequence1>(seq1), etl::forward<Sequence2>(seq2)); }
 
     /// check if any elements of two sequences are the same
     template <typename Sequence1, typename Sequence2> constexpr bool
     compare_any(Sequence1&& seq1, Sequence2&& seq2) {
-        for (auto [x, y] : etl::zip(seq1, seq2)) if (x == y) return true;
+        auto iter1 = etl::iter(seq1);
+        auto iter2 = etl::iter(seq2);
+        for (; bool(iter1) && bool(iter2); ++iter1, ++iter2) if (*iter1 == *iter2) return true;
         return false;
     }
 
     /// check if none of the elements of two sequences are the same
     template <typename Sequence1, typename Sequence2> constexpr bool
     compare_none(Sequence1&& seq1, Sequence2&& seq2) {
-        for (auto [x, y] : etl::zip(seq1, seq2)) if (x == y) return false;
+        auto iter1 = etl::iter(seq1);
+        auto iter2 = etl::iter(seq2);
+        for (; bool(iter1) && bool(iter2); ++iter1, ++iter2) if (*iter1 == *iter2) return false;
         return true;
     }
 
@@ -243,8 +240,11 @@ namespace Project::etl {
     }
 
     /// move all of elements that satisfy the predicate to the given destination
-    template <typename Seequence, typename SeequenceDest> constexpr void
-    move(Seequence&& seq, SeequenceDest& dest) { for (auto [x, y] : etl::zip(seq, dest)) y = etl::move(x); }
+    template <typename Sequence, typename SequenceDest> constexpr void
+    move(Sequence&& seq, SequenceDest& dest) {
+        for (auto [x, y] : etl::zip(etl::forward<Sequence>(seq), etl::forward<SequenceDest>(dest)))
+            y = etl::move(x);
+    }
 
     /// swap all of elements
     template <typename Iterator1, typename Iterator2> constexpr void
@@ -253,8 +253,11 @@ namespace Project::etl {
     }
     
     /// swap all of elements
-    template <typename Seequence1, typename Seequence2> constexpr void
-    swap_element(Seequence1&& seq1, Seequence2&& seq2) { for (auto [x, y] : etl::zip(seq1, seq2)) etl::swap(x, y); }
+    template <typename Sequence1, typename Sequence2> constexpr void
+    swap_element(Sequence1&& seq1, Sequence2&& seq2) {
+        for (auto [x, y] : etl::zip(etl::forward<Sequence1>(seq1), etl::forward<Sequence2>(seq2)))
+            etl::swap(x, y);
+    }
 
     /// replace all elements with the given value
     template <typename Iterator, typename T> constexpr void

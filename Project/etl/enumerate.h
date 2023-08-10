@@ -13,10 +13,11 @@ namespace Project::etl {
         int cnt;
 
     public:
-        constexpr Enumerate(Sequence seq, int cnt = 0) : sequence(seq), cnt(cnt) {}  
+        constexpr explicit Enumerate(Sequence seq, int cnt = 0) : sequence(seq), cnt(cnt) {}
  
         constexpr Enumerate begin() const { return *this; }
         constexpr Enumerate end()   const { return *this; }
+        constexpr Enumerate iter()  const { return *this; }
 
         constexpr explicit operator bool() const { return bool(sequence); }
 
@@ -37,15 +38,13 @@ namespace Project::etl {
 
     /// create enumerate object from iterator
     template <typename Iterator> constexpr auto
-    enumerate(Iterator first, Iterator last, int cnt = 0, int step = 1) { return Enumerate(etl::iter(first, last, step), cnt); }
+    enumerate(Iterator first, Iterator last, int cnt = 0, int step = 1) {
+        return Enumerate(etl::iter(first, last, step), cnt);
+    }
 
     /// create enumerate object from a container
     template <typename Sequence> constexpr auto
     enumerate(Sequence&& seq, int cnt = 0) { return Enumerate(etl::iter(seq), cnt); }
-
-    /// iter specialization for enumerate
-    template <typename Iterator> constexpr auto
-    iter(Enumerate<Iterator> e) { return e; }
-} 
+}
 
 #endif // ETL_ENUMERATE_H

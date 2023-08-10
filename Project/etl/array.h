@@ -2,19 +2,26 @@
 #define ETL_ARRAY_H
 
 #include "etl/algorithm.h"
+#include <array>
 #include <cstring> // memcpy
 
 namespace Project::etl {
 
     template <typename T, size_t N> 
     struct array_traits {
-        static_assert(N > 0, "Array size can't be zero");
         typedef T type[N];
-        static constexpr T* ptr(const type& buf) { return const_cast<T*>(buf); }
-        static constexpr T& ref(const type& buf, int i) {
+        static constexpr T* ptr(const type& buf) noexcept { return const_cast<T*>(buf); }
+        static constexpr T& ref(const type& buf, int i) noexcept {
             if (i < 0) i = N + i; // allowing negative index
             return const_cast<T&>(buf[i]);
         }
+    };
+
+    template <typename T>
+    struct array_traits<T, 0> {
+        typedef etl::None type;
+        static constexpr T* ptr(const type&) noexcept { return nullptr; }
+        static constexpr T& ref(const type&, int) noexcept { *static_cast<T*>(nullptr); }
     };
 
     template <typename T, size_t N> using array_traits_t = typename array_traits<T, N>::type;
@@ -34,6 +41,7 @@ namespace Project::etl {
 
         [[nodiscard]] static constexpr size_t size() { return N; }
         [[nodiscard]] constexpr size_t len() const { return N; }
+        constexpr explicit operator bool() const { return N > 0; }
 
         constexpr iterator data()   { return traits::ptr(buf); }
         constexpr iterator begin()  { return (iterator)(data()); }
@@ -51,23 +59,24 @@ namespace Project::etl {
         constexpr const_reference operator[](int i) const { return traits::ref(buf, i); }
 
         /// slice operator
-        constexpr Iter<iterator> operator()(int start, int stop, int step = 1)
-        { return start < stop ? etl::iter(&operator[](start), &operator[](stop), step) : etl::iter(begin(), begin(), step); }
+        constexpr Iter<iterator> operator()(int start, int stop, int step = 1) {
+            return start < stop ? etl::iter(&operator[](start), &operator[](stop), step) : etl::iter(begin(), begin(), step);
+        }
 
-        /// slice operator
-        constexpr Iter<const_iterator> operator()(int start, int stop, int step = 1) const
-        { return start < stop ? etl::iter(&operator[](start), &operator[](stop), step) : etl::iter(begin(), begin(), step); }
+        constexpr Iter<const_iterator> operator()(int start, int stop, int step = 1) const {
+            return start < stop ? etl::iter(&operator[](start), &operator[](stop), step) : etl::iter(begin(), begin(), step);
+        }
 
-        template <class Container>
-        constexpr bool operator==(const Container& other) const { return etl::compare_all(*this, other); }
+        constexpr Iter<iterator> iter() { return Iter(begin(), end(), 1); }
+        constexpr Iter<const_iterator> iter() const { return Iter(begin(), end(), 1); }
 
-        template <class Container>
-        constexpr bool operator!=(const Container& other) const { return !operator==(other); }
+        constexpr Iter<iterator> reversed() { return Iter(end() - 1, begin() - 1, -1); }
+        constexpr Iter<const_iterator> reversed() const { return Iter(end() - 1, begin() - 1, -1); }
     };
 
     /// create array with variadic template function, array type can be explicitly or implicitly specified, array size is implicitly specified
-    template <typename T = void, typename U, typename... Us, typename R = conditional_t<is_void_v<T>, U, T>> constexpr auto
-    array(const U& val, const Us&... vals) { return Array<R, 1 + sizeof...(Us)> { static_cast<R>(val), static_cast<R>(vals)... }; }
+    template <typename T = void, typename U, typename... Us, typename R = conditional_t<is_void_v<T>, decay_t<U>, T>> constexpr auto
+    array(U&& val, Us&&... vals) { return Array<R, 1 + sizeof...(Us)> { R(etl::forward<U>(val)), R(etl::forward<Us>(vals))... }; }
 
     /// create array from initializer list
     template <typename T, size_t N> constexpr Array<T, N>
@@ -108,9 +117,9 @@ namespace Project::etl {
     byte_array_cast_be(const T& value) { return byte_array_cast<T, false>(value); }
 
     /// cast from byte array to any type 
-    template <typename R, bool IsLittleEndian, typename T> 
-    enable_if_t<is_array_v<T> && is_same_v<remove_extent_t<T>, uint8_t> && is_same_size_v<R, T>, R>
-    byte_array_cast_back(const T& arr) { 
+    template <typename R, bool IsLittleEndian, typename T,
+            typename = enable_if_t<is_array_v<T> && is_same_v<remove_extent_t<T>, uint8_t> && is_same_size_v<R, T>>> R
+    byte_array_cast_back(const T& arr) {
         R res;
         if constexpr (IsLittleEndian) {
             memcpy(&res, &arr, sizeof(R));
@@ -160,7 +169,7 @@ namespace Project::etl {
     get(T(&arr)[N]) { static_assert(End > Start); return etl::array_cast<T, End - Start>(&etl::get<Start>(arr)); }
 
     /// swap specialization, avoid creating large temporary variable 
-    template <typename T, typename U> constexpr enable_if_t<is_same_v<remove_extent_t<T>, remove_extent_t<U>>>
+    template <typename T, typename U, typename = enable_if_t<is_same_v<remove_extent_t<T>, remove_extent_t<U>>>> constexpr void
     swap(T& a, U& b) { etl::swap_element(a, b); }
 
     /// type traits

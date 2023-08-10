@@ -3,6 +3,7 @@
 
 #include "periph/uart.h"
 #include "etl/event.h"
+#include "etl/timer.h"
 #include "etl/array.h"
 #include "etl/numerics.h"
 
@@ -11,7 +12,8 @@ namespace Project {
     /// power meter using PZEM-004t. UART 9600.
     /// see https://innovatorsguru.com/wp-content/uploads/2019/06/PZEM-004T-V3.0-Datasheet-User-Manual.pdf
     class PowerMeter {
-        etl::Event notifier = {};
+        etl::Event notifier;
+        etl::Timer timer;
     
     public:
         periph::UART &uart;
@@ -28,7 +30,7 @@ namespace Project {
         };
         
         using BufferSend = etl::Array<uint8_t, 8>;
-        inline static constexpr uint32_t timeout = 1000; ///< in ticks
+        inline static constexpr etl::Time timeout = etl::Time::s2time(1); ///< in ticks
         inline static constexpr uint8_t defaultAddress = 0xF8;
 
         constexpr explicit PowerMeter(periph::UART &uart)
@@ -40,6 +42,9 @@ namespace Project {
 
         /// deinit uart and notifier
         void deinit();
+
+        /// start read non blocking;
+        void start(Values& buffer);
 
         /// read all values
         Values read();
@@ -59,6 +64,8 @@ namespace Project {
         bool calibrate();
 
     private:
+        Values* buffer = nullptr;
+
         static BufferSend makeBufferSend(uint8_t address,
                                          uint8_t cmd,
                                          uint16_t registerAddress,
@@ -67,6 +74,8 @@ namespace Project {
         static uint16_t crc(const uint8_t *data, size_t len);
 
         static uint32_t decode(const uint8_t* buf, uint32_t reg);
+
+        static void decode(const uint8_t* buf, Values& values);
 
         static void rxCallback(PowerMeter *self, const uint8_t* buf, size_t len);
 
@@ -106,6 +115,7 @@ namespace Project {
             STOP_BYTES = 2
         };
     };
+
 }
 
 #endif //PROJECT_POWER_METER_H

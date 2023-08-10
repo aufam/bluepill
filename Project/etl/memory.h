@@ -55,7 +55,7 @@ namespace Project::etl {
         void reset(T* other = nullptr) noexcept { T* old = etl::exchange(ptr, other); if (old) delete old; }
 
         /// release the ownership, the caller must handle the pointer
-        [[nodiscard("return pointer has to be handled by the caller")]]
+        [[nodiscard]]
         T* release() noexcept { return etl::exchange(ptr, nullptr); }
     };
 
@@ -137,7 +137,7 @@ namespace Project::etl {
         /// release the ownership
         /// @return released pointer and reference count
         /// @note if the reference count is zero, the caller must handle the released pointer
-        [[nodiscard("return pointer has to be handled by the caller")]]
+        [[nodiscard]]
         auto release() noexcept { 
             struct Released { T* ptr; size_t count; };
             if (cnt && --*cnt == 0) delete cnt;

@@ -45,10 +45,10 @@ namespace Project::etl {
         }
 
         /// move constructor
-        Any(Any&& other) : ptr(etl::exchange(other.ptr, nullptr)), n(etl::exchange(other.n, 0)) {}
+        Any(Any&& other) noexcept : ptr(etl::exchange(other.ptr, nullptr)), n(etl::exchange(other.n, 0)) {}
 
         /// move assignment
-        Any& operator=(Any&& other) {
+        Any& operator=(Any&& other) noexcept {
             if (&other == this) return *this;
             detach();
 
@@ -59,8 +59,8 @@ namespace Project::etl {
 
         /// construct from any type
         /// @note disable if value type is Any& or const T&&
-        template <typename T>
-        Any(T&& value, disable_if_t<etl::is_same_v<T, Any&> || etl::is_const_v<T>>* = 0) : ptr(nullptr), n(0) {
+        template <typename T, typename = disable_if_t<is_same_v<T, Any&> || is_const_v<T>>>
+        Any(T&& value) : ptr(nullptr), n(0) {
             using U = decay_t<T>;
             if constexpr (!is_same_v<U, None>) {
                 ptr = new uint8_t[sizeof(U)];
@@ -74,8 +74,8 @@ namespace Project::etl {
 
         /// assign from any type
         /// @note disable if value type is Any& or const T&&
-        template <typename T>
-        disable_if_t<etl::is_same_v<T, Any&> || etl::is_const_v<T>, Any&> operator=(T&& value) {
+        template <typename T, typename = disable_if_t<is_same_v<T, Any&> || is_const_v<T>>>
+        Any& operator=(T&& value) {
             Any other = etl::forward<T>(value);
             *this = etl::move(other);
             return *this;
@@ -86,8 +86,8 @@ namespace Project::etl {
         size_t size() const { return n; }
 
         /// invoke destructor T and reset
-        template <typename T = void>
-        disable_if_t<is_reference_v<T>> detach() {
+        template <typename T = void, typename = disable_if_t<is_same_v<T, Any> || is_const_v<T>>>
+        void detach() {
             if (ptr == nullptr) return;
             
             if constexpr (is_compound_v<T> && !is_pointer_v<T>)
