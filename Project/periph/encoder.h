@@ -1,7 +1,7 @@
 #ifndef PROJECT_ENCODER_H
 #define PROJECT_ENCODER_H
 
-#include "../../Core/Inc/tim.h"
+#include "Core/Inc/tim.h"
 #include "etl/function.h"
 
 namespace Project::periph {

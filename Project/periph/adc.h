@@ -1,7 +1,7 @@
 #ifndef PERIPH_ADC_H
 #define PERIPH_ADC_H
 
-#include "../../Core/Inc/adc.h"
+#include "Core/Inc/adc.h"
 #include "etl/array.h"
 #include "etl/function.h"
 

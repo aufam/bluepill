@@ -1,7 +1,7 @@
 #ifndef PERIPH_UART_H
 #define PERIPH_UART_H
 
-#include "../../Core/Inc/usart.h"
+#include "Core/Inc/usart.h"
 #include "etl/array.h"
 #include "etl/string.h"
 #include "etl/function.h"

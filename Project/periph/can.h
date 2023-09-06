@@ -1,7 +1,7 @@
 #ifndef PERIPH_CAN_H
 #define PERIPH_CAN_H
 
-#include "../../Core/Inc/can.h"
+#include "Core/Inc/can.h"
 #include "etl/function.h"
 #include "etl/linked_list.h"
 

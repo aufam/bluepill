@@ -1,7 +1,7 @@
 #ifndef PERIPH_INPUT_CAPTURE_H
 #define PERIPH_INPUT_CAPTURE_H
 
-#include "../../Core/Inc/tim.h"
+#include "Core/Inc/tim.h"
 #include "etl/function.h"
 
 namespace Project::periph {

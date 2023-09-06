@@ -1,7 +1,7 @@
 #ifndef PERIPH_RTC_H
 #define PERIPH_RTC_H
 
-#include "../../Core/Inc/rtc.h"
+#include "Core/Inc/rtc.h"
 #include "etl/time.h"
 
 namespace Project::periph {
