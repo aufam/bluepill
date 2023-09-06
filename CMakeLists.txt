@@ -76,6 +76,7 @@ include_directories(
         Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3
         Drivers/CMSIS/Device/ST/STM32F1xx/Include
         Drivers/CMSIS/Include
+        ${CMAKE_HOME_DIRECTORY}
         Project)
 
 # source files
