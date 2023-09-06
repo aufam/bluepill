@@ -24,7 +24,7 @@ namespace Project::etl {
 
     /// create tuple with variadic template function
     template <typename... Items> constexpr auto
-    tuple(const Items&... items) { return Tuple<Items...> { items... }; }
+    tuple(Items&&... items) { return Tuple<Items...> { etl::forward<Items>(items)... }; }
 
     /// len specifier
     template <typename... T> constexpr size_t
@@ -245,7 +245,7 @@ namespace Project::etl {
     }
     /// forward_as_tuple
     template <typename... Items> constexpr Tuple<Items&&...>
-    forward_as_tuple(Items&&... items) noexcept { return Tuple<Items&&...>(etl::forward<Items>(items)...); }
+    forward_as_tuple(Items&&... items) noexcept { return Tuple<Items&&...>{etl::forward<Items>(items)...}; }
 }
 
 // some specializations to enable structure binding
