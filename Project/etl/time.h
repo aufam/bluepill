@@ -10,33 +10,20 @@ namespace Project::etl {
         static constexpr auto tickFreq = configTICK_RATE_HZ; ///< os tick frequency
 
         uint32_t tick; ///< os tick
+
+        /// empty constructor
+        constexpr Time() : tick(0) {}
  
         /// default constructor, you can specify the tick value 
         constexpr explicit Time(uint32_t tick) : tick(tick) {}
 
-        /// tick value is os tick count
-        Time() : tick(osKernelGetTickCount()) {}
-
-        /// convert from milli seconds
-        static constexpr Time ms2time(uint32_t v)   { return Time { (v * tickFreq + 999ul) / 1000ul }; }
-
-        /// convert from seconds
-        static constexpr Time s2time(uint32_t v)    { return Time { (v * tickFreq) }; }
-
-        /// convert from minutes
-        static constexpr Time min2time(uint32_t v)  { return Time { (v * tickFreq * 60) }; }
-
-        /// get os tick count
-        static Time now() { return {}; }
-
-        /// calculate elapsed time since t
-        static Time elapsedSince(Time t) { return Time() - t; }
+        constexpr explicit operator bool() const { return tick > 0; }
 
         /// convert to milli seconds
-        [[nodiscard]] constexpr float ms()  const { return (float) tick * 1e3f / tickFreq; }
+        [[nodiscard]] constexpr float ms() const { return (float) tick * 1e3f / tickFreq; }
 
         /// convert to seconds
-        [[nodiscard]] constexpr float s()   const { return (float) tick / tickFreq; }
+        [[nodiscard]] constexpr float s() const { return (float) tick / tickFreq; }
 
         /// convert to minutes
         [[nodiscard]] constexpr float min() const { return (float) tick / tickFreq / 60; }
@@ -63,9 +50,27 @@ namespace Project::etl {
         constexpr bool operator >(Time other) const { return tick > other.tick; }
         constexpr bool operator <(Time other) const { return tick < other.tick; }
     };
+}
 
-    inline static constexpr auto timeInfinite = Time(osWaitForever);
-    inline static constexpr auto timeImmediate = Time(0);
+namespace Project::etl::time {
+
+    inline static constexpr auto infinite = Time(osWaitForever);
+    inline static constexpr auto immediate = Time(0);
+
+    /// convert from milliseconds to Time 
+    inline constexpr Time milliseconds(uint32_t v) { return Time { (v * Time::tickFreq + 999ul) / 1000ul }; }
+
+    /// convert from seconds to Time
+    inline constexpr Time seconds(uint32_t v) { return Time { (v * Time::tickFreq) }; }
+
+    /// convert from minutes to Time
+    inline constexpr Time minutes(uint32_t v) { return Time { (v * Time::tickFreq * 60) }; }
+    
+    /// get os tick count
+    inline Time now() { return Time { osKernelGetTickCount() }; }
+
+    /// calculate elapsed time since t
+    inline Time elapsed(Time t) { return now() - t; }
 
     /// sleep for specified time interval
     /// @note cannot be called from ISR
@@ -77,9 +82,9 @@ namespace Project::etl {
 }
 
 namespace Project::etl::literals {
-    constexpr auto operator""ms   (unsigned long long v) { return Time::ms2time(v); }
-    constexpr auto operator""s    (unsigned long long v) { return Time::s2time(v); }
-    constexpr auto operator""min  (unsigned long long v) { return Time::min2time(v); }
+    constexpr auto operator""ms   (unsigned long long v) { return time::milliseconds(v); }
+    constexpr auto operator""s    (unsigned long long v) { return time::seconds(v); }
+    constexpr auto operator""min  (unsigned long long v) { return time::minutes(v); }
 }
 
 #endif //ETL_TIME_H

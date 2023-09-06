@@ -58,6 +58,13 @@ namespace Project::periph {
                 off();
         }
 
+        struct InitArgs { uint32_t mode; uint32_t pull = GPIO_NOPULL; uint32_t speed = GPIO_SPEED_FREQ_LOW; };
+
+        /// overload
+        void init(InitArgs args) const {
+            init(args.mode, args.pull, args.speed);
+        }
+
         /// write pin high (true) or low (false)
         void write(bool highLow) const { HAL_GPIO_WritePin(port, pin, highLow ? GPIO_PIN_SET : GPIO_PIN_RESET); }
 

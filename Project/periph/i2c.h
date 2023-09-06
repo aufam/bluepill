@@ -17,8 +17,8 @@ namespace Project::periph {
         /// default constructor
         constexpr explicit I2C(I2C_HandleTypeDef &hi2c) : hi2c(hi2c) {}
 
-        I2C(const I2C&) = delete; ///< disable copy constructor
-        I2C(I2C&&) = delete;      ///< disable move constructor
+        I2C(const I2C&) = delete;               ///< disable copy constructor
+        I2C& operator=(const I2C&) = delete;    ///< disable copy assignment
 
         void init() {}
 

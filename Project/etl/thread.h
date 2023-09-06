@@ -10,23 +10,49 @@
 namespace Project::etl {
 
     /// FreeRTOS thread interface
-    /// @note requires cmsis os v2
+    /// @note requires cmsis os v2, USE_TRACE_FACILITY, SUPPORT_STATIC_ALLOCATION, SUPPORT_DYNAMIC_ALLOCATION
     /// @note should not be declared as const
     class ThreadInterface {
+        static_assert(configUSE_TRACE_FACILITY > 0, "configUSE_TRACE_FACILITY has to be activated");
+        static_assert(configSUPPORT_STATIC_ALLOCATION > 0, "configSUPPORT_STATIC_ALLOCATION has to be activated");
+        static_assert(configSUPPORT_DYNAMIC_ALLOCATION > 0, "configSUPPORT_DYNAMIC_ALLOCATION has to be activated");
+
     protected:
         osThreadId_t id; ///< thread pointer
 
+        void referenceCounterInc() { if (id) ++reinterpret_cast<StaticTask_t*>(id)->uxDummy10[1]; }
+        void referenceCounterDec() { if (id) --reinterpret_cast<StaticTask_t*>(id)->uxDummy10[1]; }
+
     public:
-        /// default constructor
-        explicit constexpr ThreadInterface(osThreadId_t id) : id(id) {}
+        /// empty constructor
+        constexpr ThreadInterface() : id(nullptr) {}
+
+        /// construct from thread pointer
+        explicit ThreadInterface(osThreadId_t id) : id(id) {
+            referenceCounterInc();
+        }
+
+        /// copy constructor
+        ThreadInterface(const ThreadInterface& t) : id(t.id) {
+            referenceCounterInc();
+        }
+
+        /// copy assignment
+        ThreadInterface& operator=(const ThreadInterface& t) {
+            if (id == t.id) return *this;
+            detach();
+            id = t.id;
+            referenceCounterInc();
+            return *this;
+        }
 
         /// move constructor
         ThreadInterface(ThreadInterface&& t) : id(etl::exchange(t.id, nullptr)) {}
 
         /// move assignment
         ThreadInterface& operator=(ThreadInterface&& t) { 
-            if (this == &t) return *this;
-            detach(); 
+            if (id == t.id) return *this;
+            detach();
             id = etl::exchange(t.id, nullptr); 
             return *this; 
         }
@@ -34,14 +60,24 @@ namespace Project::etl {
         /// default destructor
         ~ThreadInterface() { detach(); }
 
-        ThreadInterface(const ThreadInterface&) = delete;               ///< disable copy constructor
-        ThreadInterface& operator=(const ThreadInterface&) = delete;    ///< disable copy assignment
-        
         /// return true if id is not null
-        explicit operator bool() { return (bool) id; }
+        explicit operator bool() { return count() > 0; }
+
+        /// get the reference counter
+        uint32_t count() { return id ? reinterpret_cast<StaticTask_t*>(id)->uxDummy10[1] : 0; }
 
         /// get thread pointer
         osThreadId_t get() { return id; }
+
+        /// terminate execution, delete resource, and set id to null
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t detach() { 
+            referenceCounterDec();
+            if (count() > 0)
+                return osOK;
+            return osThreadTerminate(etl::exchange(id, nullptr)); 
+        }
 
         /// name as null terminated string
         /// @note cannot be called from ISR
@@ -74,12 +110,7 @@ namespace Project::etl {
         /// @note cannot be called from ISR
         osStatus_t resume() { return osThreadResume(id); }
 
-        /// terminate execution, delete resource, and set id to null
-        /// @return osStatus
-        /// @note cannot be called from ISR
-        osStatus_t detach() { return osThreadTerminate(etl::exchange(id, nullptr)); }
-
-        /// send flags to this thread
+        /// set flags to this thread
         /// @param flags specifies the flags of the thread that shall be set
         /// @return this thread's flags after setting or error code if highest bit set
         /// @note can be called from ISR
@@ -87,6 +118,11 @@ namespace Project::etl {
 
         /// set flags operator
         ThreadInterface& operator|(uint32_t flags) { setFlags(flags); return *this; }
+    };
+
+    struct StaticThreadAttributes {
+        osPriority_t prio = osPriorityNormal; 
+        const char* name = nullptr; 
     };
     
     /// FreeRTOS static thread
@@ -101,7 +137,7 @@ namespace Project::etl {
 
     public:
         /// default constructor
-        constexpr Thread() : ThreadInterface(nullptr) {}
+        constexpr Thread() : ThreadInterface() {}
 
         Thread(const Thread&) = delete; ///< disable copy constructor
         Thread(Thread&& t) = delete;    ///< disable move constructor
@@ -111,44 +147,54 @@ namespace Project::etl {
 
         /// initiate thread
         /// @param fn thread function
-        /// @param arg thread function argument
-        /// @param prio osPriorityXxx, default = osPriorityNormal
-        /// @param name as null terminated string, default = null
+        /// @param ctx thread function context
+        /// @param attributes
+        ///     - .prio osPriorityXxx, default = osPriorityNormal
+        ///     - .name as null terminated string, default = null
         /// @return osStatus
         /// @note cannot be called from ISR
-        template <typename Fn, typename Arg>
-        osStatus_t init(Fn&& fn, Arg* arg, osPriority_t prio = osPriorityNormal, const char* name = nullptr) { 
+        template <typename Fn, typename Ctx>
+        osStatus_t init(Fn&& fn, Ctx* ctx, StaticThreadAttributes attributes = {}) { 
             if (this->id) return osError;
+
             osThreadAttr_t attr = {};
-            attr.name = name;
+            attr.name = attributes.name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
             attr.stack_mem = &buffer;
-            attr.stack_size = sizeof(buffer); // in byte
-            attr.priority = prio;
-            auto fp = static_cast<void (*)(Arg*)>(etl::forward<Fn>(fn));
-            this->id = osThreadNew(reinterpret_cast<void (*)(void*)>(fp), reinterpret_cast<void*>(arg), &attr);
+            attr.stack_size = sizeof(buffer); // in bytes
+            attr.priority = attributes.prio;
+            
+            auto fp = static_cast<void (*)(Ctx*)>(etl::forward<Fn>(fn));
+            this->id = osThreadNew(reinterpret_cast<void (*)(void*)>(fp), reinterpret_cast<void*>(ctx), &attr);
+            this->referenceCounterInc();
+            
             return osOK;
         }
 
         /// initiate thread
         /// @param fn function pointer
-        /// @param prio osPriorityXxx, default = osPriorityNormal
-        /// @param name as null terminated string, default = null
+        /// @param attributes
+        ///     - .prio osPriorityXxx, default = osPriorityNormal
+        ///     - .name as null terminated string, default = null
         /// @return osStatus
         /// @note cannot be called from ISR
         template <typename Fn>
-        osStatus_t init(Fn&& fn, osPriority_t prio = osPriorityNormal, const char* name = nullptr) { 
+        osStatus_t init(Fn&& fn, StaticThreadAttributes attributes = {}) { 
             if (this->id) return osError;
+
             osThreadAttr_t attr = {};
-            attr.name = name;
+            attr.name = attributes.name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
             attr.stack_mem = &buffer;
             attr.stack_size = sizeof(buffer); // in byte
-            attr.priority = prio;
+            attr.priority = attributes.prio;
+            
             auto fp = static_cast<void (*)()>(etl::forward<Fn>(fn));
             this->id = osThreadNew(reinterpret_cast<void (*)(void*)>(fp), nullptr, &attr);
+            this->referenceCounterInc();
+
             return osOK;
         }
 
@@ -158,53 +204,63 @@ namespace Project::etl {
         osStatus_t deinit() { return detach(); }
     };
 
+    struct DynamicThreadAttributes {
+        uint32_t stackSize = configMINIMAL_STACK_SIZE;
+        osPriority_t prio = osPriorityNormal; 
+        const char* name = nullptr; 
+    };
+
     /// create dynamic thread
     /// @param fn thread function
-    /// @param arg thread function argument
-    /// @param stackSize in words (1 word = 4 bytes), default = configMINIMAL_STACK_SIZE
-    /// @param prio osPriorityXxx
-    /// @param name as null terminated string, default = null
+    /// @param ctx thread function context
+    /// @param attributes
+    ///     - .stackSize in words (1 word = 4 bytes), default = configMINIMAL_STACK_SIZE
+    ///     - .prio osPriorityXxx, default = osPriorityNormal
+    ///     - .name as null terminated string, default = null
     /// @return thread object
     /// @note cannot be called from ISR
-    template <typename Fn, typename Arg>
-    auto make_thread(Fn&& fn, Arg* arg, uint32_t stackSize = configMINIMAL_STACK_SIZE, osPriority_t prio = osPriorityNormal, const char* name = nullptr) {
+    template <typename Fn, typename Ctx>
+    auto thread(Fn&& fn, Ctx* ctx, DynamicThreadAttributes attributes = {}) {
         osThreadAttr_t attr = {};
-        attr.name = name;
-        attr.priority = prio;
-        attr.stack_size = stackSize * 4;
-        auto fp = static_cast<void (*)(Arg*)>(etl::forward<Fn>(fn));
-        return ThreadInterface(osThreadNew(reinterpret_cast<void (*)(void*)>(fp), reinterpret_cast<void*>(arg), &attr)); 
+        attr.name = attributes.name;
+        attr.priority = attributes.prio;
+        attr.stack_size = attributes.stackSize * 4;
+
+        auto fp = static_cast<void (*)(Ctx*)>(etl::forward<Fn>(fn));
+        return ThreadInterface(osThreadNew(reinterpret_cast<void (*)(void*)>(fp), reinterpret_cast<void*>(ctx), &attr)); 
     }
     
     /// create dynamic thread
     /// @param fn thread function
-    /// @param stackSize in words (1 word = 4 bytes), default = configMINIMAL_STACK_SIZE
-    /// @param prio osPriorityXxx
-    /// @param name as null terminated string, default = null
+    /// @param attributes
+    ///     - .stackSize in words (1 word = 4 bytes), default = configMINIMAL_STACK_SIZE
+    ///     - .prio osPriorityXxx, default = osPriorityNormal
+    ///     - .name as null terminated string, default = null
     /// @return thread objecct
     /// @note cannot be called from ISR
     template <typename Fn>
-    auto make_thread(Fn&& fn, uint32_t stackSize = configMINIMAL_STACK_SIZE, osPriority_t prio = osPriorityNormal, const char* name = nullptr) {
+    auto thread(Fn&& fn, DynamicThreadAttributes attributes = {}) {
         osThreadAttr_t attr = {};
-        attr.name = name;
-        attr.priority = prio;
-        attr.stack_size = stackSize * 4;
+        attr.name = attributes.name;
+        attr.priority = attributes.prio;
+        attr.stack_size = attributes.stackSize * 4;
+
         auto fp = static_cast<void (*)()>(etl::forward<Fn>(fn));
         return ThreadInterface(osThreadNew(reinterpret_cast<void (*)(void*)>(fp), nullptr, &attr));
     }
 
-    /// return the current running thread object
-    /// @note should be called in thread function
-    inline auto threadGetCurrent() { return ThreadInterface(osThreadGetId()); }
+    /// return reference to the static thread
+    template <size_t N>
+    auto thread(Thread<N>& thd) { return ThreadInterface(thd.get()); }
 
-    /// pass control from current thread to next thread
-    /// @return osStatus
-    /// @note should be called in thread function
-    inline osStatus_t threadYield() { return osThreadYield(); }
+    /// return reference to thread pointer
+    inline auto thread(osThreadId_t thd) { return ThreadInterface(thd); }
 
-    /// terminate execution of current running thread
-    /// @note should be called in thread function
-    inline void threadExit() { osThreadExit(); }
+    /// return reference to the dynamic thread
+    inline auto thread(ThreadInterface& thd) { return ThreadInterface(thd.get()); }
+
+    /// return reference to the moved dynamic thread
+    inline auto thread(ThreadInterface&& thd) { return ThreadInterface(etl::move(thd)); }
 
     /// return number of active threads
     /// @note cannot be called from ISR
@@ -219,10 +275,7 @@ namespace Project::etl {
 
         public:
             ThreadArray(const ThreadArray&) = delete;
-            ThreadArray(ThreadArray&&) = delete;
-
             ThreadArray& operator=(const ThreadArray&) = delete;
-            ThreadArray& operator=(ThreadArray&&) = delete;
 
             ThreadArray() : ptr(nullptr), n(threadCount()) {
                 ptr = new osThreadId_t[n];
@@ -246,42 +299,62 @@ namespace Project::etl {
         };
         return ThreadArray();
     }
+}
+
+namespace Project::etl::this_thread {
+
+    using time::sleep;
+    using time::sleepUntil;
+
+    /// return the current running thread object
+    /// @note should be called in thread function
+    inline auto get() { return ThreadInterface(osThreadGetId()); }
+
+    /// pass control from current thread to next thread
+    /// @return osStatus
+    /// @note should be called in thread function
+    inline osStatus_t yield() { return osThreadYield(); }
+
+    /// terminate execution of current running thread
+    /// @note should be called in thread function
+    inline void exit() { osThreadExit(); }
 
     /// reset the specified flags of current running thread
     /// @param flags specifies the flags of the thread that shall be reset
     /// @return current thread's flags before resetting or error code if highest bit set
     /// @note should be called in thread function
-    inline FlagManager threadResetFlags(uint32_t flags) { return osThreadFlagsClear(flags); }
+    inline FlagManager resetFlags(uint32_t flags) { return osThreadFlagsClear(flags); }
 
     /// get the current flags of the current running thread
     /// @return current thread's flags
     /// @note should be called in thread function
-    inline FlagManager threadGetFlags() { return osThreadFlagsGet(); }
+    inline FlagManager getFlags() { return osThreadFlagsGet(); }
 
     /// wait for flags of the current running thread to become signaled
-    /// @param flags specifies the flags to wait for
-    /// @param option osFlagsWaitAny (default) or osFlagsWaitAny
-    /// @param timeout default = timeInfinite
-    /// @param doReset specifies wether reset the flags or not, default = true
+    /// @param args
+    ///     - .flags specifies the flags to wait for
+    ///     - .option osFlagsWaitAny (default) or osFlagsWaitAll
+    ///     - .timeout default = osWaitForever
+    ///     - .doReset specifies wether reset the flags or not, default = true
     /// @return current thread's flags before resetting or error code if highest bit set
     /// @note should be called in thread function
-    inline FlagManager threadWaitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, etl::Time timeout = etl::timeInfinite, bool doReset = true) { 
-        if (!doReset) option |= osFlagsNoClear;
-        return osThreadFlagsWait(flags, option, timeout.tick); 
+    inline FlagManager waitFlags(Event::WaitFlagsArgs args) { 
+        if (!args.doReset) args.option |= osFlagsNoClear;
+        return osThreadFlagsWait(args.flags, args.option, args.timeout.tick); 
     }
 
     /// wait for any flags of the current running thread to become signaled
-    /// @param timeout default = osWaitForever
-    /// @param doReset specifies wether reset the flags or not, default = true
+    /// @param args
+    ///     - .timeout default = osWaitForever
+    ///     - .doReset specifies wether reset the flags or not, default = true
     /// @return current thread's flags before resetting or error code if highest bit set
     /// @note should be called in thread function
-    inline FlagManager threadWaitFlagsAny(etl::Time timeout = etl::timeInfinite, bool doReset = true) { 
+    inline FlagManager waitFlagsAny(Event::WaitFlagsAnyArgs args = {}) { 
         uint32_t flags = (1u << 24) - 1; // all possible flags
         uint32_t option = osFlagsWaitAny;
-        if (!doReset) option |= osFlagsNoClear;
-        return osThreadFlagsWait(flags, option, timeout.tick); 
+        if (!args.doReset) option |= osFlagsNoClear;
+        return osThreadFlagsWait(flags, option, args.timeout.tick); 
     }
-
 }
 
 #endif //ETL_THREAD_H

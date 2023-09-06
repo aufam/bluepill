@@ -20,10 +20,7 @@ namespace Project::periph {
         constexpr PWM(TIM_HandleTypeDef &htim, uint32_t channel) : htim(htim), channel(channel) {}
 
         PWM(const PWM&) = delete; ///< disable copy constructor
-        PWM(PWM&&) = delete;      ///< disable copy assignment
-
-        PWM& operator=(const PWM&) = delete;  ///< disable move constructor
-        PWM& operator=(PWM&&) = delete;       ///< disable move assignment
+        PWM& operator=(const PWM&) = delete;  ///< disable copy assignment
 
         /// set prescaler, period, pulse
         /// @param prescaler set TIMx->PSC

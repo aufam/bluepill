@@ -32,6 +32,7 @@ namespace Project::periph {
         /// callback function class
         using Callback = etl::Function<void(Message &), void*>;
 
+        /// callback list
         using CallbackList = etl::LinkedList<Callback>;
 
         CAN_HandleTypeDef &hcan;            ///< CAN handler configured by CubeMX
@@ -44,10 +45,7 @@ namespace Project::periph {
         constexpr explicit CAN(CAN_HandleTypeDef &hcan) : hcan(hcan) {}
 
         CAN(const CAN&) = delete; ///< disable copy constructor
-        CAN(CAN&&) = delete;      ///< disable move constructor
-
         CAN& operator=(const CAN&) = delete;  ///< disable copy assignment
-        CAN& operator=(CAN&&) = delete;       ///< disable move assignment
 
         /// start CAN and activate notification at RX FIFO message pending
         /// @param useExtId true: use extended ID, false: use standard ID (default)

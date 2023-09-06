@@ -43,6 +43,14 @@ fun PowerMeter::init() -> void {
     uart.init(); 
     uart.setRxCallback(rxCallback, this);
     notifier.init();
+    timer.init(
+        lambda (PowerMeter* self) {
+            val bufferSend = makeBufferSend(self->address, CMD_READ_INPUT_REGISTER, REG_VOLTAGE, REG_TOTAL);
+            memcpy(self->uart.rxBuffer.data(), bufferSend.data(), bufferSend.len());
+            self->uart.transmit(self->uart.rxBuffer.data(), bufferSend.len());
+        }, this, 
+        {.interval=timeout}
+    );
 }
 
 fun PowerMeter::deinit() -> void {
@@ -50,41 +58,18 @@ fun PowerMeter::deinit() -> void {
     notifier.deinit();
 }
 
-fun PowerMeter::start(Values& buffer) -> void {
-    this->buffer = &buffer;
-    timer.init(timeout, lambda (PowerMeter* self) {
-        val bufferSend = makeBufferSend(self->address, CMD_READ_INPUT_REGISTER, REG_VOLTAGE, REG_TOTAL);
-        memcpy(self->uart.rxBuffer.data(), bufferSend.data(), bufferSend.len());
-        self->uart.transmit(self->uart.rxBuffer.data(), bufferSend.len());
-    }, this);
-}
-
-fun PowerMeter::read() -> PowerMeter::Values {
-    // request all values
-    val bufferSend = makeBufferSend(address, CMD_READ_INPUT_REGISTER, REG_VOLTAGE, REG_TOTAL);
-    uart.transmitBlocking(bufferSend.data(), bufferSend.len());
-
-    /// wait flag
-    Values values;
-    if (notifier.waitFlags(FLAG_VALUES, osFlagsWaitAny, timeout) != FLAG_VALUES) 
-        return values; /// return if timeout
-
-    /// decode
-    decode(uart.rxBuffer.data(), values);
-    return values;
-}
-
 fun PowerMeter::getAlarmThreshold() -> float {
     val bufferSend = makeBufferSend(address, CMD_READ_HOLDING_REGISTER, REG_ALARM_THRESHOLD, 1);
     uart.transmit(bufferSend.data(), bufferSend.len());
-    return notifier.waitFlags(FLAG_GETTER, osFlagsWaitAny, timeout) == FLAG_GETTER ? (float) decode(uart.rxBuffer.data(), 0) : NAN;
+    return notifier.waitFlags({.flags=FLAG_GETTER, .option=osFlagsWaitAny, .timeout=timeout}) == FLAG_GETTER ? 
+        (float) decode(uart.rxBuffer.data(), 0) : NAN;
 }
 
 fun PowerMeter::getDeviceAddress() -> uint8_t {
     val bufferSend = makeBufferSend(address, CMD_READ_HOLDING_REGISTER, REG_DEVICE_ADDRESS, 1);
     uart.transmit(bufferSend.data(), bufferSend.len());
 
-    if (notifier.waitFlags(FLAG_GETTER, osFlagsWaitAny, timeout) != FLAG_GETTER) 
+    if (notifier.waitFlags({.flags=FLAG_GETTER, .option=osFlagsWaitAny, .timeout=timeout}) != FLAG_GETTER) 
         return address; /// return if timeout
 
     address = decode(uart.rxBuffer.data(), 0);
@@ -96,14 +81,14 @@ fun PowerMeter::setAlarmThreshold(float power) -> bool {
     if (power > 25000.f) power = 25000.f;
     val bufferSend = makeBufferSend(address, CMD_WRITE_SINGLE_REGISTER, REG_ALARM_THRESHOLD, (uint16_t) power);
     uart.transmit(bufferSend.data(), bufferSend.len());
-    return notifier.waitFlags(FLAG_SETTER, osFlagsWaitAny, timeout) == FLAG_SETTER;
+    return notifier.waitFlags({.flags=FLAG_SETTER, .option=osFlagsWaitAny, .timeout=timeout}) == FLAG_SETTER;
 }
 
 fun PowerMeter::setDeviceAddress(uint8_t newAddress) -> bool {
     if (newAddress < 0x01 || newAddress > 0xF7) return false;
     val bufferSend = makeBufferSend(address, CMD_WRITE_SINGLE_REGISTER, REG_ALARM_THRESHOLD, newAddress);
     uart.transmit(bufferSend.data(), bufferSend.len());
-    return notifier.waitFlags(FLAG_SETTER, osFlagsWaitAny, timeout) == FLAG_SETTER;
+    return notifier.waitFlags({.flags=FLAG_SETTER, .option=osFlagsWaitAny, .timeout=timeout}) == FLAG_SETTER;
 }
 
 fun PowerMeter::resetEnergy() -> bool {
@@ -112,7 +97,7 @@ fun PowerMeter::resetEnergy() -> bool {
     bufferSend[2] = (checksum >> 8) & 0xFF;
     bufferSend[3] = (checksum >> 0) & 0xFF;
     uart.transmit(bufferSend, sizeof (bufferSend));
-    return notifier.waitFlags(FLAG_SETTER, osFlagsWaitAny, timeout) == FLAG_SETTER;
+    return notifier.waitFlags({.flags=FLAG_SETTER, .option=osFlagsWaitAny, .timeout=timeout}) == FLAG_SETTER;
 }
 
 fun PowerMeter::calibrate() -> bool {
@@ -121,7 +106,7 @@ fun PowerMeter::calibrate() -> bool {
     bufferSend[4] = (checksum >> 8) & 0xFF;
     bufferSend[5] = (checksum >> 0) & 0xFF;
     uart.transmit(bufferSend, sizeof (bufferSend));
-    return notifier.waitFlags(FLAG_SETTER, osFlagsWaitAny, timeout) == FLAG_SETTER;
+    return notifier.waitFlags({.flags=FLAG_SETTER, .option=osFlagsWaitAny, .timeout=timeout}) == FLAG_SETTER;
 }
 
 fun PowerMeter::makeBufferSend(uint8_t address, uint8_t cmd, uint16_t registerAddress, uint16_t nRegister) -> PowerMeter::BufferSend {
@@ -154,14 +139,14 @@ fun PowerMeter::decode(const uint8_t* buf, uint32_t reg) -> uint32_t {
     return etl::byte_array_cast_back_le<uint16_t>(data); 
 }
 
-fun PowerMeter::decode(const uint8_t* buf, Values& values) -> void {
+fun PowerMeter::decode(const uint8_t* buf, PowerMeterValues& values) -> void {
     var safe_multiply = etl::safe_mul<float, uint32_t, float>;
     values.voltage      = safe_multiply(decode(buf, REG_VOLTAGE), .1f);
     values.current      = safe_multiply(decode(buf, REG_CURRENT_L) | decode(buf, REG_CURRENT_H) << 16, .001f);
     values.power        = safe_multiply(decode(buf, REG_POWER_L)   | decode(buf, REG_POWER_H)   << 16, .1f);
     values.energy       = safe_multiply(decode(buf, REG_ENERGY_L)  | decode(buf, REG_ENERGY_H)  << 16, 1.f);
     values.frequency    = safe_multiply(decode(buf, REG_FREQUENCY), .1f);
-    values.pf           = safe_multiply(decode(buf, REG_PF), .01f);
+    values.powerFactor  = safe_multiply(decode(buf, REG_PF), .01f);
     values.alarm        = decode(buf, REG_ALARM) == 0xFFFF;
 }
 
@@ -172,10 +157,8 @@ fun PowerMeter::rxCallback(PowerMeter *self, const uint8_t* buf, size_t len) -> 
     val reset  = 4;
     val calib  = 6;
 
-    if (len == values && self->buffer) 
-        decode(buf, *self->buffer);
-    elif (len == values) 
-        self->notifier | FLAG_VALUES;
+    if (len == values)
+        decode(buf, self->values);
     elif (len == getter) 
         self->notifier | FLAG_GETTER;
     elif (len == setter) 

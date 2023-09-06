@@ -32,22 +32,48 @@ namespace Project::etl {
     };
 
     /// FreeRTOS event interface.
-    /// @note requires cmsis os v2
+    /// @note requires cmsis os v2, USE_TRACE_FACILITY, SUPPORT_STATIC_ALLOCATION, SUPPORT_DYNAMIC_ALLOCATION
     /// @note should not be declared as const
     class EventInterface {
+        static_assert(configUSE_TRACE_FACILITY > 0, "configUSE_TRACE_FACILITY has to be activated");
+        static_assert(configSUPPORT_STATIC_ALLOCATION > 0, "configSUPPORT_STATIC_ALLOCATION has to be activated");
+        static_assert(configSUPPORT_DYNAMIC_ALLOCATION > 0, "configSUPPORT_DYNAMIC_ALLOCATION has to be activated");
+
     protected:
         osEventFlagsId_t id; ///< event pointer
+
+        void referenceCounterInc() { if (id) ++reinterpret_cast<StaticEventGroup_t*>(id)->uxDummy3; }
+        void referenceCounterDec() { if (id) --reinterpret_cast<StaticEventGroup_t*>(id)->uxDummy3; }
         
     public:
-        /// default constructor
-        explicit constexpr EventInterface(osEventFlagsId_t id) : id(id) {}
+        /// empty constructor
+        constexpr EventInterface() : id(nullptr) {}
+
+        /// construct from event pointer
+        explicit EventInterface(osEventFlagsId_t id) : id(id) {
+            referenceCounterInc();
+        }
+
+        /// copy constructor
+        EventInterface(const EventInterface& e) : id(e.id) {
+            referenceCounterInc();
+        }
+
+        /// copy assignment
+        EventInterface& operator=(const EventInterface& e) {
+            if (id == e.id) return *this;
+            detach();
+            id = e.id;
+            referenceCounterInc();
+            return *this;
+        }
 
         /// move constructor
         EventInterface(EventInterface&& e) noexcept : id(etl::exchange(e.id, nullptr)) {}
 
         /// move assignment
         EventInterface& operator=(EventInterface&& e) noexcept {
-            if (this == &e) return *this;
+            if (id == e.id) return *this;
             detach(); 
             id = etl::exchange(e.id, nullptr); 
             return *this;
@@ -55,15 +81,26 @@ namespace Project::etl {
 
         /// default destructor
         ~EventInterface() { detach(); }
-
-        EventInterface(const EventInterface&) = delete;               ///< disable copy constructor
-        EventInterface& operator=(const EventInterface&) = delete;    ///< disable copy assignment
         
         /// return true if id is not null
-        explicit operator bool() { return (bool) id; }
+        explicit operator bool() { return count() > 0; }
+
+        /// get the reference counter
+        uint32_t count() { return reinterpret_cast<StaticEventGroup_t*>(id)->uxDummy3; }
 
         /// get event pointer
         osEventFlagsId_t get() { return id; }
+
+        /// decrease reference counter and clean resource if reference counter is 0 
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t detach() { 
+            referenceCounterDec();
+            if (count() > 0) 
+                return osOK;
+            
+            return osEventFlagsDelete(etl::exchange(id, nullptr)); 
+        }
 
         /// name as null terminated string
         const char* getName() { return osEventFlagsGetName(id); }  
@@ -85,50 +122,53 @@ namespace Project::etl {
         /// @note can be called from ISR
         FlagManager getFlags() { return osEventFlagsGet(id); }
 
+        struct WaitFlagsArgs {
+            uint32_t flags;
+            uint32_t option = osFlagsWaitAny;
+            Time timeout = time::infinite;
+            bool doReset = true;
+        };
+
         /// wait for flags of this event to become signaled
-        /// @param flags specifies the flags to wait for
-        /// @param option osFlagsWaitAny (default) or osFlagsWaitAny
-        /// @param timeout default = osWaitForever
-        /// @param doReset specifies wether reset the flags or not, default = true
+        /// @param args
+        ///     - .flags specifies the flags to wait for
+        ///     - .option osFlagsWaitAny (default) or osFlagsWaitAll
+        ///     - .timeout default = osWaitForever
+        ///     - .doReset specifies wether reset the flags or not, default = true
         /// @return flags before resetting or error code if highest bit set
-        /// @note can be called from ISR if timeout == 0
-        FlagManager waitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, uint32_t timeout = osWaitForever, bool doReset = true) { 
-            if (!doReset) option |= osFlagsNoClear;
-            return osEventFlagsWait(id, flags, option, timeout); 
+        /// @note can be called from ISR if timeout == time::immediate
+        FlagManager waitFlags(WaitFlagsArgs args) { 
+            if (!args.doReset) args.option |= osFlagsNoClear;
+            return osEventFlagsWait(id, args.flags, args.option, args.timeout.tick); 
         }
 
-        /// overload
-        FlagManager waitFlags(uint32_t flags, uint32_t option = osFlagsWaitAny, etl::Time timeout = etl::timeInfinite, bool doReset = true) { 
-            return waitFlags(flags, option, timeout.tick, doReset); 
-        }
+        struct WaitFlagsAnyArgs {
+            Time timeout = time::infinite;
+            bool doReset = true;
+        };
 
         /// wait for any flags of this event to become signaled
-        /// @param timeout default = osWaitForever
-        /// @param doReset specifies wether reset the flags or not, default = true
+        /// @param args
+        ///     - .timeout default = osWaitForever
+        ///     - .doReset specifies wether reset the flags or not, default = true
         /// @return flags before resetting or error code if highest bit set
         /// @note can be called from ISR if timeout == 0
-        FlagManager waitFlagsAny(uint32_t timeout = osWaitForever, bool doReset = true) { 
+        FlagManager waitFlagsAny(WaitFlagsAnyArgs args = {.timeout=time::infinite, .doReset=true}) { 
             uint32_t flags = (1u << 24) - 1; // all possible flags
             uint32_t option = osFlagsWaitAny;
-            if (!doReset) option |= osFlagsNoClear;
-            return osEventFlagsWait(id, flags, option, timeout); 
+            if (!args.doReset) option |= osFlagsNoClear;
+            return osEventFlagsWait(id, flags, option, args.timeout.tick); 
         }
-
-        /// overload
-        FlagManager waitFlagsAny(etl::Time timeout = etl::timeInfinite, bool doReset = true) { 
-            return waitFlagsAny(timeout.tick, doReset); 
-        }
-
-        /// delete resource and set id to null
-        /// @return osStatus
-        /// @note cannot be called from ISR
-        osStatus_t detach() { return osEventFlagsDelete(etl::exchange(id, nullptr)); }
 
         /// set operator
         EventInterface& operator|(uint32_t flags) { setFlags(flags); return *this; }
 
         /// reset operator
         EventInterface& operator&(uint32_t flags) { resetFlags(flags); return *this; }
+    };
+
+    struct EventAttributes {
+        const char* name = nullptr;
     };
 
     /// FreeRTOS static event.
@@ -140,7 +180,7 @@ namespace Project::etl {
 
     public:
         /// default constructor
-        constexpr Event() : EventInterface(nullptr) {}
+        constexpr Event() : EventInterface() {}
 
         Event(const Event&) = delete; ///< disable copy constructor
         Event(Event&& t) = delete;    ///< disable move constructor
@@ -152,13 +192,16 @@ namespace Project::etl {
         /// @param name string name, default null
         /// @return osStatus
         /// @note cannot be called from ISR
-        osStatus_t init(const char* name = nullptr) {
+        osStatus_t init(EventAttributes attributes = {}) {
             if (this->id) return osError;
+
             osEventFlagsAttr_t attr = {};
-            attr.name = name;
+            attr.name = attributes.name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
+            
             this->id = osEventFlagsNew(&attr);
+            this->referenceCounterInc();
             return osOK;
         }
 
@@ -172,11 +215,23 @@ namespace Project::etl {
     /// @param name as null terminated string, default = null
     /// @return event object
     /// @note cannot be called from ISR
-    inline auto make_event(const char* name = nullptr) {
+    inline auto event(EventAttributes attributes = {}) {
         osEventFlagsAttr_t attr = {};
-        attr.name = name;
+        attr.name = attributes.name;
         return EventInterface(osEventFlagsNew(&attr));
     }
+
+    /// return reference to the static event
+    inline auto event(Event& evt) { return EventInterface(evt.get()); }
+
+    /// return reference to event pointer
+    inline auto event(osEventFlagsId_t evt) { return EventInterface(evt); }
+
+    /// return reference to the dynamic event
+    inline auto event(EventInterface& evt) { return EventInterface(evt.get()); }
+
+    /// return reference to the moved dynamic event
+    inline auto event(EventInterface&& evt) { return EventInterface(etl::move(evt)); }
 }
 
 #endif

@@ -24,10 +24,7 @@ namespace Project::periph {
         constexpr explicit UART(UART_HandleTypeDef &huart) : huart(huart) {}
 
         UART(const UART&) = delete; ///< disable copy constructor
-        UART(UART&&) = delete;      ///< disable move constructor
-
-        UART& operator=(const UART&) = delete;  ///< disable move constructor
-        UART& operator=(UART&&) = delete;       ///< disable move assignment
+        UART& operator=(const UART&) = delete;  ///< disable copy assignment
 
         /// start receive to idle
         void init() {

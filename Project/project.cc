@@ -14,7 +14,7 @@ fun mainThread() {
     oled.init();
 
     enum { EVENT_BT_UP, EVENT_BT_DOWN, EVENT_BT_RIGHT, EVENT_BT_LEFT, EVENT_BT_ROT, EVENT_ROT_UP, EVENT_ROT_DOWN };
-    var thd = etl::threadGetCurrent();
+    var thd = etl::this_thread::get();
 
     periph::exti.setCallback(button_up_Pin, lambda (var thd) { 
         thd->setFlags(1 << EVENT_BT_UP); }, 
@@ -46,11 +46,11 @@ fun mainThread() {
 
     var f = etl::string();
     oled << "Hello World!\n";
-    oled << f("heap free sz = %lu bytes\n", etl::heapGetFreeSize());
+    oled << f("heap free sz = %lu bytes\n", (size_t)etl::heap::freeSize);
 
     for (;;) {
         // wait flag and print it to oled
-        val catchedFlags = etl::threadWaitFlagsAny();
+        val catchedFlags = etl::this_thread::waitFlagsAny();
         val eventNumber = etl::count_trailing_zeros(catchedFlags.get());
         oled << f("%lu", eventNumber);
     }
@@ -60,5 +60,5 @@ fun project_init() -> void {
     encoder.init();
 
     // assign to static variable to ensure the lifetime extends the scope
-    var static s = etl::make_thread(mainThread, 256, osPriorityAboveNormal1);
+    var static s = etl::thread(mainThread, {.stackSize=256, .prio=osPriorityAboveNormal1});
 }

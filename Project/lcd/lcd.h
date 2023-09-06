@@ -40,8 +40,8 @@ namespace Project {
         void home();
 
         /// set cursor position
-        /// @param column calumn position, max value is specified column number - 1
-        /// @param row calumn position, max value is specified row number - 1
+        /// @param column column position, max value is specified column number - 1
+        /// @param row row position, max value is specified row number - 1
         void setCursor(uint8_t column, uint8_t row);
 
         /// do not show any characters on the LCD display, backlight state will remain unchanged,

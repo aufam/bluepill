@@ -3,7 +3,7 @@
 
 #include "main.h"
 
-namespace Project::BLDC {
+namespace Project::bldc {
 
     enum MC_FAULT_CODE : int {
         FAULT_CODE_NONE = 0,
@@ -35,28 +35,16 @@ namespace Project::BLDC {
         FAULT_CODE_ENCODER_MAGNET_TOO_STRONG
     };
 
-    struct Values {
-        int id;                     ///< controller id
-        float inVoltage;            ///< in volt
-        float duty;                 ///< in range [-1.0, 1.0]
-        float inCurrent;            ///< in ampere
-        float outCurrent;           ///< in ampere
-        float mosfetTemp;           ///< in C
-        float erpm;                 ///< in rpm
-        int tachometer;             ///< relative position in step
-        MC_FAULT_CODE faultCode;
-
-        enum MASK : uint32_t {
-            MASK_ID             = 1 << 17,
-            MASK_IN_VOLTAGE     = 1 << 8,
-            MASK_MOSFET_TEMP    = 1 << 0,
-            MASK_OUT_CURRENT    = 1 << 2,
-            MASK_IN_CURRENT     = 1 << 3,
-            MASK_ERPM           = 1 << 7,
-            MASK_DUTY           = 1 << 6,
-            MASK_TACHOMETER     = 1 << 13,
-            MASK_FAULT_CODE     = 1 << 15,
-        };
+    enum MASK : uint32_t {
+        MASK_ID             = 1 << 17,
+        MASK_IN_VOLTAGE     = 1 << 8,
+        MASK_MOSFET_TEMP    = 1 << 0,
+        MASK_OUT_CURRENT    = 1 << 2,
+        MASK_IN_CURRENT     = 1 << 3,
+        MASK_ERPM           = 1 << 7,
+        MASK_DUTY           = 1 << 6,
+        MASK_TACHOMETER     = 1 << 13,
+        MASK_FAULT_CODE     = 1 << 15,
     };
 
     enum COMM_PACKET_ID : uint8_t {

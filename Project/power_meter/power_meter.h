@@ -6,36 +6,43 @@
 #include "etl/timer.h"
 #include "etl/array.h"
 #include "etl/numerics.h"
+#include "etl/getter_setter.h"
+#include "etl/function.h"
 
 namespace Project {
+
+    struct PowerMeterValues {
+        float voltage = NAN;    ///< in volt
+        float current = NAN;    ///< in ampere
+        float power = NAN;      ///< in watt
+        float energy = NAN;     ///< in Wh
+        float frequency = NAN;  ///< in Hz
+        float powerFactor = NAN;///< power factor
+        bool alarm = false;     ///< indicates power is greater than power threshold
+    };
 
     /// power meter using PZEM-004t. UART 9600.
     /// see https://innovatorsguru.com/wp-content/uploads/2019/06/PZEM-004T-V3.0-Datasheet-User-Manual.pdf
     class PowerMeter {
+        template <typename T>
+        using GetterSetter = etl::GetterSetter<T, etl::Function<T(), PowerMeter*>, etl::Function<bool(T), PowerMeter*>>;
+
         etl::Event notifier;
         etl::Timer timer;
+        uint8_t address;
+        PowerMeterValues& values;
     
     public:
         periph::UART &uart;
-        uint8_t address;
-
-        struct Values {
-            float voltage = NAN;    ///< in volt
-            float current = NAN;    ///< in ampere
-            float power = NAN;      ///< in watt
-            float energy = NAN;     ///< in Wh
-            float frequency = NAN;  ///< in Hz
-            float pf = NAN;         ///< power factor
-            bool alarm = false;     ///< indicates power is greater than power threshold
-        };
         
         using BufferSend = etl::Array<uint8_t, 8>;
-        inline static constexpr etl::Time timeout = etl::Time::s2time(1); ///< in ticks
+        inline static constexpr etl::Time timeout = etl::time::seconds(1);
         inline static constexpr uint8_t defaultAddress = 0xF8;
 
-        constexpr explicit PowerMeter(periph::UART &uart)
-        : uart(uart)
-        , address(defaultAddress) {}
+        constexpr PowerMeter(PowerMeterValues& values, periph::UART &uart)
+        : address(defaultAddress)
+        , values(values)
+        , uart(uart) {}
 
         /// init uart and notifier
         void init();
@@ -43,14 +50,45 @@ namespace Project {
         /// deinit uart and notifier
         void deinit();
 
-        /// start read non blocking;
-        void start(Values& buffer);
+        /// get voltage
+        const float& voltage = values.voltage;
 
-        /// read all values
-        Values read();
+        /// get current
+        const float& current = values.current;
 
-        /// read alarm threshold
-        /// @return power threshold in Watt
+        /// get power
+        const float& power = values.power;
+
+        /// get energy
+        const float& energy = values.energy;
+
+        /// get frequency
+        const float& frequency = values.frequency;
+
+        /// get power factor
+        const float& powerFactor = values.powerFactor;
+
+        /// get alarm
+        const bool& alarm = values.alarm;
+
+        /// get and set power threshold
+        GetterSetter<float> powerThreshold = {
+            etl::bind<&PowerMeter::getAlarmThreshold>(this),
+            etl::bind<&PowerMeter::setAlarmThreshold>(this)
+        };
+
+        /// get and set device address
+        GetterSetter<uint8_t> deviceAddress = {
+            etl::bind<&PowerMeter::getDeviceAddress>(this),
+            etl::bind<&PowerMeter::setDeviceAddress>(this)
+        };
+
+        bool resetEnergy();
+
+        bool calibrate();
+
+    private:
+
         float getAlarmThreshold();
 
         uint8_t getDeviceAddress();
@@ -58,13 +96,6 @@ namespace Project {
         bool setAlarmThreshold(float power);
 
         bool setDeviceAddress(uint8_t newAddress);
-
-        bool resetEnergy();
-
-        bool calibrate();
-
-    private:
-        Values* buffer = nullptr;
 
         static BufferSend makeBufferSend(uint8_t address,
                                          uint8_t cmd,
@@ -75,7 +106,7 @@ namespace Project {
 
         static uint32_t decode(const uint8_t* buf, uint32_t reg);
 
-        static void decode(const uint8_t* buf, Values& values);
+        static void decode(const uint8_t* buf, PowerMeterValues& values);
 
         static void rxCallback(PowerMeter *self, const uint8_t* buf, size_t len);
 
@@ -105,7 +136,6 @@ namespace Project {
         };
         
         enum : uint32_t {
-            FLAG_VALUES = 0b001,
             FLAG_GETTER = 0b010,
             FLAG_SETTER = 0b100,
         };

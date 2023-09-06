@@ -34,9 +34,9 @@ fun Oxygen::rxCallback(Oxygen *self, const uint8_t* buf, size_t len) -> void {
     if (checksum != buf[len - 1]) return;
 
     // decode
-    self->concentrate = etl::safe_div<float>(buf[3] << 8 | buf[4], 10.f);
-    self->flow        = etl::safe_div<float>(buf[5] << 8 | buf[6], 10.f);
-    self->temperature = etl::safe_div<float>(buf[7] << 8 | buf[8], 10.f);
+    self->values.concentrate = etl::safe_div<float>(buf[3] << 8 | buf[4], 10.f);
+    self->values.flow        = etl::safe_div<float>(buf[5] << 8 | buf[6], 10.f);
+    self->values.temperature = etl::safe_div<float>(buf[7] << 8 | buf[8], 10.f);
 
     // notify
 #if PROJECT_OXYGEN_IS_USING_NOTIFIER

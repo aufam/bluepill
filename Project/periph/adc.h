@@ -21,10 +21,7 @@ namespace Project::periph {
         constexpr explicit ADCD(ADC_HandleTypeDef &hadc) : hadc(hadc) {} 
 
         ADCD(const ADCD&) = delete; ///< disable copy constructor
-        ADCD(ADCD&&) = delete;      ///< disable move constructor
-
         ADCD& operator=(const ADCD&) = delete;  ///< disable copy assignment
-        ADCD& operator=(ADCD&&) = delete;       ///< disable move assignment
 
         /// start ADC DMA circular
         void init() {

@@ -3,6 +3,7 @@
 
 #include "periph/i2c.h"
 #include "periph/gpio.h"
+#include "etl/array.h"
 
 namespace Project {
 
@@ -106,6 +107,80 @@ namespace Project {
         void off(uint32_t ticks = 0) const {
             write(!activeMode);
             osDelay(ticks);
+        }
+
+        [[nodiscard]] bool isOn() const { return !(read() ^ activeMode); }
+        [[nodiscard]] bool isOff() const { return (read() ^ activeMode); }
+    };
+
+    struct IO {
+        IOExpander<2>* portExpander;    ///< pointer to IOExpander object
+        GPIO_TypeDef* portGPIO;         ///< pointer to GPIOx
+        uint16_t pin;      ///< GPIO_PIN_x
+        bool activeMode;                ///< periph::GPIO::activeLow or periph::GPIO::activeHigh
+
+        constexpr IO(IOExpander<2>& port, uint16_t pin, bool activeMode)
+            : portExpander(&port)
+            , portGPIO(nullptr)
+            , pin(pin)
+            , activeMode(activeMode) {}
+
+        constexpr IO(GPIO_TypeDef *port, uint16_t pin, bool activeMode)
+            : portExpander(nullptr)
+            , portGPIO(port)
+            , pin(pin)
+            , activeMode(activeMode) {}
+
+        /// init IO and turn off
+        /// @param mode GPIO_MODE_INPUT or GPIO_MODE_OUTPUT_PP
+        void init(uint32_t mode) const {
+            if (portExpander)
+                IOExpander<2>::Pin(*portExpander, pin, activeMode).init(mode);
+            if (portGPIO)
+                periph::GPIO(portGPIO, pin, activeMode).init(mode);
+        }
+
+        /// write pin high (true) or low (false)
+        void write(bool value) const {
+            if (portExpander)
+                IOExpander<2>::Pin(*portExpander, pin, activeMode).write(value);
+            if (portGPIO)
+                periph::GPIO(portGPIO, pin, activeMode).write(value);
+        }
+
+        /// toggle pin
+        void toggle() const { 
+            if (portExpander)
+                IOExpander<2>::Pin(*portExpander, pin, activeMode).toggle();
+            if (portGPIO)
+                periph::GPIO(portGPIO, pin, activeMode).toggle(); 
+        }
+
+        /// read pin
+        /// @retval high (true) or low (false)
+        [[nodiscard]] bool read() const {
+            if (portExpander)
+                return IOExpander<2>::Pin(*portExpander, pin, activeMode).read();
+            if (portGPIO)
+                return periph::GPIO(portGPIO, pin, activeMode).read(); 
+        }
+
+        /// turn on
+        /// @param ticks sleep for a while. default = 0
+        void on(uint32_t ticks = 0) const {
+            if (portExpander)
+                return IOExpander<2>::Pin(*portExpander, pin, activeMode).on(ticks);
+            if (portGPIO)
+                return periph::GPIO(portGPIO, pin, activeMode).on(ticks); 
+        }
+
+        /// turn off
+        /// @param ticks sleep for a while. default = 0
+        void off(uint32_t ticks = 0) const {
+            if (portExpander)
+                return IOExpander<2>::Pin(*portExpander, pin, activeMode).off(ticks);
+            if (portGPIO)
+                return periph::GPIO(portGPIO, pin, activeMode).off(ticks); 
         }
 
         [[nodiscard]] bool isOn() const { return !(read() ^ activeMode); }

@@ -9,9 +9,13 @@ using namespace Project::periph;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     uint16_t static pinNow;
     uint32_t static timeNow;
+    
+    if (osKernelGetState() != osKernelRunning)
+        return;
 
     auto pinPrev = pinNow;
     auto timePrev = timeNow;
+    
     timeNow = osKernelGetTickCount();
     pinNow = GPIO_Pin;
     if ((pinNow == pinPrev) && 

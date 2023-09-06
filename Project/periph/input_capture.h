@@ -19,10 +19,7 @@ namespace Project::periph {
         constexpr InputCapture(TIM_HandleTypeDef& htim, uint32_t channel) : htim(htim), channel(channel) {}
 
         InputCapture(const InputCapture&) = delete; ///< disable copy constructor
-        InputCapture(InputCapture&&) = delete;      ///< disable copy assignment
-
-        InputCapture& operator=(const InputCapture&) = delete;  ///< disable move constructor
-        InputCapture& operator=(InputCapture&&) = delete;       ///< disable move assignment
+        InputCapture& operator=(const InputCapture&) = delete;  ///< disable copy assignment
 
         /// start TIM IC interrupt
         void init() { HAL_TIM_IC_Start_IT(&htim, channel); }
