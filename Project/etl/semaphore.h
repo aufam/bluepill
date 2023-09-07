@@ -63,7 +63,7 @@ namespace Project::etl {
         explicit operator bool() { return count() > 0; }
 
         /// get the reference counter
-        uint32_t refcount() { return id ? reinterpret_cast<StaticSemaphore_t*>(id)->uxDummy8 : 0; }
+        uint32_t count() { return id ? reinterpret_cast<StaticSemaphore_t*>(id)->uxDummy8 : 0; }
 
         /// get semaphore pointer
         osSemaphoreId_t get() { return id; }
@@ -95,7 +95,7 @@ namespace Project::etl {
 
         /// get token counter
         /// @note can be called from ISR
-        uint32_t count() { return osSemaphoreGetCount(id); }
+        uint32_t tokenCount() { return osSemaphoreGetCount(id); }
 
         /// release operator
         SemaphoreInterface& operator++(int) { release(); return *this; }
