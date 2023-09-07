@@ -41,6 +41,7 @@ namespace Project {
         /// reset trigger pin, deinit event and deinit input capture
         void deinit();
 
+        /// get the distance value
         const etl::Getter<float, etl::Function<float(), Ultrasonic*>> distance = {
             etl::bind<&Ultrasonic::read>(this)
         };
@@ -53,7 +54,7 @@ namespace Project {
         /// @retval distance in cm
         float read();
 
-        static void inputCaptureCallback(Ultrasonic* self);
+        void inputCaptureCallback();
     };
 
 }

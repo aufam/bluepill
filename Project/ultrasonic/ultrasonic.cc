@@ -4,10 +4,10 @@
 using namespace Project;
 
 fun Ultrasonic::init() -> void {
-    trigger.init(GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH);
+    trigger.init({.mode=GPIO_MODE_OUTPUT_PP, .pull=GPIO_NOPULL, .speed=GPIO_SPEED_FREQ_HIGH});
     event.init();
     inputCapture.init();
-    inputCapture.setCallback(inputCaptureCallback, this);
+    inputCapture.setCallback(lambda (Ultrasonic* self) { self->inputCaptureCallback(); }, this);
 }
 
 fun Ultrasonic::deinit() -> void {
@@ -36,12 +36,9 @@ fun Ultrasonic::read() -> float {
     return distance_;
 }
 
-fun Ultrasonic::inputCaptureCallback(Ultrasonic* self) -> void {
-    auto& isRising = self->isRising;
-    auto& valueRising = self->valueRising;
-    auto& valueFalling = self->valueFalling;
-    auto& channel = self->inputCapture.channel;
-    auto* htim = &self->inputCapture.htim;
+fun Ultrasonic::inputCaptureCallback() -> void {
+    auto& channel = inputCapture.channel;
+    auto* htim = &inputCapture.htim;
 
     if (isRising) {
         valueRising = HAL_TIM_ReadCapturedValue(htim, channel);
@@ -55,9 +52,9 @@ fun Ultrasonic::inputCaptureCallback(Ultrasonic* self) -> void {
     isRising = true;
 
     auto diff = valueFalling > valueRising ? valueFalling - valueRising : 0xFFFF - valueRising + valueFalling;
-    self->distance_ = (float) diff * factor;
+    distance_ = (float) diff * factor;
 
     __HAL_TIM_SET_CAPTUREPOLARITY(htim, channel, TIM_INPUTCHANNELPOLARITY_RISING);
-    self->inputCapture.disable();
+    inputCapture.disable();
     Ultrasonic::event.setFlags(1 << channel);
 }
