@@ -2,22 +2,24 @@
 
 using namespace Project::periph;
 
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-    UART *uart;
-    if (huart->Instance == uart1.huart.Instance) uart = &uart1;
-    else if (huart->Instance == uart2.huart.Instance) uart = &uart2;
-    else return;
+static UART* selector(UART_HandleTypeDef *huart) {
+    if (huart->Instance == uart1.huart.Instance)
+        return &uart1;
+    if (huart->Instance == uart2.huart.Instance)
+        return &uart2;
+    return nullptr;
+}
 
-    uart->rxCallback(uart->rxBuffer.data(), Size);
-    HAL_UARTEx_ReceiveToIdle_DMA(&uart->huart, uart->rxBuffer.begin(), UART::Buffer::size());
-    __HAL_DMA_DISABLE_IT(uart->huart.hdmarx, DMA_IT_HT);
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
+    auto uart = selector(huart);
+    if (uart) {
+        uart->rxCallback(uart->rxBuffer.data(), Size);
+        uart->init();
+    }
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    UART *uart;
-    if (huart->Instance == uart1.huart.Instance) uart = &uart1;
-    else if (huart->Instance == uart2.huart.Instance) uart = &uart2;
-    else return;
-
-    uart->txCallback();
+    auto uart = selector(huart);
+    if (uart) 
+        uart->txCallback();
 }

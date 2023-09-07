@@ -3,7 +3,22 @@
 
 using namespace Project::periph;
 
+static InputCapture* selector(TIM_HandleTypeDef *htim) {
+    UNUSED(htim);
+    return nullptr;
+}
+
+static Encoder* selectorEncoder(TIM_HandleTypeDef *htim) {
+    if (htim->Instance == encoder1.htim.Instance) return &encoder1;
+    return nullptr;
+}
+
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == encoder1.htim.Instance) encoder1.inputCaptureCallback();
-    else return;
+    auto ic = selector(htim);
+    if (ic) 
+        ic->callback();
+
+    auto enc = selectorEncoder(htim);
+    if (enc)
+        enc->inputCaptureCallback();
 }
