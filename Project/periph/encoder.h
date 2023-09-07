@@ -1,7 +1,7 @@
 #ifndef PROJECT_ENCODER_H
 #define PROJECT_ENCODER_H
 
-#include "../../Core/Inc/tim.h"
+#include "Core/Inc/tim.h"
 #include "etl/function.h"
 
 namespace Project::periph {
@@ -45,8 +45,8 @@ namespace Project::periph {
         /// set decrement callback
         /// @param fn decrement callback function
         /// @param ctx decrement callback function context
-        template <typename Fn, typename Arg>
-        void setDecrementCB(Fn&& fn, Arg* ctx) { decrementCB = Callback(etl::forward<Fn>(fn), ctx); }
+        template <typename Fn, typename Ctx>
+        void setDecrementCB(Fn&& fn, Ctx* ctx) { decrementCB = Callback(etl::forward<Fn>(fn), ctx); }
         
         /// set decrement callback
         /// @param fn decrement callback function

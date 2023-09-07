@@ -126,7 +126,12 @@ namespace Project::etl {
 
     /// check if all elements of two sequences are the same
     template <typename Sequence1, typename Sequence2,
-            typename = enable_if_t<has_begin_end_v<remove_reference_t<Sequence1>> && has_begin_end_v<remove_reference_t<Sequence2>>>
+            typename = enable_if_t<
+                has_begin_end_v<remove_reference_t<Sequence1>> && 
+                has_begin_end_v<remove_reference_t<Sequence2>> &&
+                !placeholder::is_arg_v<remove_const<Sequence1>> &&
+                !placeholder::is_arg_v<remove_reference_t<Sequence2>>
+            >
     > constexpr bool
     operator==(Sequence1&& seq1, Sequence2&& seq2) {
         auto iter1 = etl::iter(seq1);

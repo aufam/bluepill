@@ -463,4 +463,14 @@ namespace Project::etl {
 
 }
 
+namespace Project::etl::placeholder {
+    template <typename T> struct Argument;
+    template <typename T> struct is_arg : false_type {};
+    template <typename T> struct is_arg<Argument<T>> : true_type {};
+    template <typename T> struct is_arg<const Argument<T>> : true_type {};
+    template <typename T> struct is_arg<volatile Argument<T>> : true_type {};
+    template <typename T> struct is_arg<const volatile Argument<T>> : true_type {};
+    template <typename T> inline constexpr bool is_arg_v = is_arg<T>::value;
+}
+
 #endif //ETL_TYPE_TRAITS_H

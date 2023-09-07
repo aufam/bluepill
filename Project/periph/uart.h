@@ -1,7 +1,7 @@
 #ifndef PERIPH_UART_H
 #define PERIPH_UART_H
 
-#include "../../Core/Inc/usart.h"
+#include "Core/Inc/usart.h"
 #include "etl/array.h"
 #include "etl/string.h"
 #include "etl/function.h"
@@ -24,15 +24,12 @@ namespace Project::periph {
         constexpr explicit UART(UART_HandleTypeDef &huart) : huart(huart) {}
 
         UART(const UART&) = delete; ///< disable copy constructor
-        UART(UART&&) = delete;      ///< disable move constructor
+        UART& operator=(const UART&) = delete;  ///< disable copy assignment
 
-        UART& operator=(const UART&) = delete;  ///< disable move constructor
-        UART& operator=(UART&&) = delete;       ///< disable move assignment
-
-        /// start receive to idle DMA
+        /// start receive to idle
         void init() {
             HAL_UARTEx_ReceiveToIdle_DMA(&huart, rxBuffer.data(), rxBuffer.len());
-            __HAL_DMA_DISABLE_IT(huart.hdmarx, DMA_IT_HT);
+            __HAL_DMA_DISABLE_IT(huart.hdmarx, DMA_IT_HT); // disable half complete callback
         }
 
         /// disable receive DMA

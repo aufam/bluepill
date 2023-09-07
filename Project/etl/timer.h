@@ -9,22 +9,48 @@
 namespace Project::etl {
 
     /// FreeRTOS timer interface
-    /// @note requires cmsis os v2
+    /// @note requires cmsis os v2, USE_TRACE_FACILITY, SUPPORT_STATIC_ALLOCATION, SUPPORT_DYNAMIC_ALLOCATION
     /// @note should not be declared as const
     class TimerInterface {
+        static_assert(configUSE_TRACE_FACILITY > 0, "configUSE_TRACE_FACILITY has to be activated");
+        static_assert(configSUPPORT_STATIC_ALLOCATION > 0, "configSUPPORT_STATIC_ALLOCATION has to be activated");
+        static_assert(configSUPPORT_DYNAMIC_ALLOCATION > 0, "configSUPPORT_DYNAMIC_ALLOCATION has to be activated");
+        
     protected:
         osTimerId_t id; ///< timer pointer
 
+        void referenceCounterInc() { if (id) ++reinterpret_cast<StaticTimer_t*>(id)->uxDummy6; }
+        void referenceCounterDec() { if (id) --reinterpret_cast<StaticTimer_t*>(id)->uxDummy6; }
+
     public:
-        /// default constructor
-        explicit constexpr TimerInterface(osTimerId_t id) : id(id) {}
+        /// empty constructor
+        constexpr TimerInterface() : id(nullptr) {}
+
+        /// construct from timer pointer
+        explicit TimerInterface(osTimerId_t id) : id(id) {
+            referenceCounterInc();
+        }
+
+        /// copy constructor
+        TimerInterface(const TimerInterface& t) : id(t.id) {
+            referenceCounterInc();
+        }
+
+        /// copy assignment
+        TimerInterface& operator=(const TimerInterface& t) {
+            if (id == t.id) return *this;
+            detach();
+            id = t.id;
+            referenceCounterInc();
+            return *this;
+        }
 
         /// move constructor
         TimerInterface(TimerInterface&& t) : id(etl::exchange(t.id, nullptr)) {}
 
         /// move assignment
         TimerInterface& operator=(TimerInterface&& t) { 
-            if (this == &t) return *this;
+            if (id == t.id) return *this;
             detach(); 
             id = etl::exchange(t.id, nullptr); 
             return *this; 
@@ -32,14 +58,27 @@ namespace Project::etl {
 
         /// default destructor
         ~TimerInterface() { detach(); }
-
-        TimerInterface(const TimerInterface&) = delete;               ///< disable copy constructor
-        TimerInterface& operator=(const TimerInterface&) = delete;    ///< disable copy assignment
         
         /// return true if id is not null
-        explicit operator bool() { return (bool) id; }
+        explicit operator bool() { return count() > 0; }
 
+        /// get the reference counter
+        uint32_t count() { return id ? reinterpret_cast<StaticTimer_t*>(id)->uxDummy6 : 0; }
+
+        /// get timer pointer
         osTimerId_t get() { return id; }
+
+        /// stop this timer, detach the callback function and set id to null
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t detach() { 
+            referenceCounterDec();
+            if (count() > 0) 
+                return osOK;
+            
+            stop(); 
+            return osTimerDelete(etl::exchange(id, nullptr)); 
+        }
 
         /// name as null terminated string
         /// @note cannot be called from ISR
@@ -58,11 +97,13 @@ namespace Project::etl {
         /// check if the timer is running
         /// @note cannot be called from ISR
         bool isRunning() { return osTimerIsRunning(id); }
+    };
 
-        /// stop this timer, detach the callback function and set id to null
-        /// @return osStatus
-        /// @note cannot be called from ISR
-        osStatus_t detach() { stop(); return osTimerDelete(etl::exchange(id, nullptr)); }
+    struct TimerAttributes {
+        etl::Time interval; 
+        osTimerType_t type = osTimerPeriodic; 
+        const char *name = nullptr;
+        bool startNow = true;
     };
 
     /// FreeRTOS timer
@@ -72,7 +113,7 @@ namespace Project::etl {
 
     public:
         /// empty constructor
-        constexpr Timer() : TimerInterface(nullptr) {}
+        constexpr Timer() : TimerInterface() {}
 
         Timer(const Timer&) = delete; ///< disable copy constructor
         Timer(Timer&& t) = delete;    ///< disable move constructor
@@ -81,45 +122,56 @@ namespace Project::etl {
         Timer& operator=(Timer&&) = delete;      ///< disable move assignment
 
         /// initiate timer
-        /// @param interval function call interval in ticks
-        /// @param fn function pointer
-        /// @param arg function argument
-        /// @param type timer type, osTimerPeriodic (default) or osTimerOnce
-        /// @param name as null terminated string, default = null
-        /// @param startNow true (default): start now, false: start later
+        /// @param fn function
+        /// @param ctx function context
+        /// @param attributes
+        ///     - .interval: function call interval.
+        ///     - .type: timer type, osTimerPeriodic (default) or osTimerOnce
+        ///     - .name: as null terminated string, default = null
+        ///     - .startNow: true (default): start now, false: start later
         /// @return osStatus
         /// @note cannot be called from ISR
-        template <typename Fn, typename Arg>
-        osStatus_t init(etl::Time interval, Fn&& fn, Arg *arg, osTimerType_t type = osTimerPeriodic, const char *name = nullptr, bool startNow = true) {
+        template <typename Fn, typename Ctx>
+        osStatus_t init(Fn&& fn, Ctx *ctx, TimerAttributes attributes) {
             if (this->id) return osError;
+
             osTimerAttr_t attr = {};
-            attr.name = name;
+            attr.name = attributes.name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
-            auto fp = static_cast<void (*)(Arg*)>(etl::forward<Fn>(fn));
-            this->id = osTimerNew(reinterpret_cast<void (*)(void*)>(fp), type, reinterpret_cast<void*>(arg), &attr);
-            if (startNow) this->start(interval.tick);
+            
+            auto fp = static_cast<void (*)(Ctx*)>(etl::forward<Fn>(fn));
+            this->id = osTimerNew(reinterpret_cast<void (*)(void*)>(fp), attributes.type, reinterpret_cast<void*>(ctx), &attr);
+            this->referenceCounterInc();
+            if (attributes.startNow) 
+                this->start(attributes.interval.tick);
+            
             return osOK;
         }
 
         /// initiate timer
         /// @param interval function call interval in ticks
         /// @param fn function pointer
-        /// @param type timer type, osTimerPeriodic (default) or osTimerOnce
-        /// @param name as null terminated string, default = null
-        /// @param startNow true (default): start now, false: start later
+        /// @param attributes
+        ///     - .interval: function call interval.
+        ///     - .type: timer type, osTimerPeriodic (default) or osTimerOnce
+        ///     - .name: as null terminated string, default = null
+        ///     - .startNow: true (default): start now, false: start later
         /// @return osStatus
         /// @note cannot be called from ISR
         template <typename Fn>
-        osStatus_t init(etl::Time interval, Fn&& fn, osTimerType_t type = osTimerPeriodic, const char *name = nullptr, bool startNow = true) {
+        osStatus_t init(Fn&& fn, TimerAttributes attributes) {
             if (this->id) return osError;
+
             osTimerAttr_t attr = {};
-            attr.name = name;
+            attr.name = attributes.name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
+            
             auto fp = static_cast<void (*)()>(etl::forward<Fn>(fn));
-            this->id = osTimerNew(reinterpret_cast<void (*)(void*)>(fp), type, nullptr, &attr);
-            if (startNow) this->start(interval.tick);
+            this->id = osTimerNew(reinterpret_cast<void (*)(void*)>(fp), attributes.type, nullptr, &attr);
+            if (attributes.startNow) this->start(attributes.interval.tick);
+            
             return osOK;
         }
 
@@ -130,41 +182,60 @@ namespace Project::etl {
     };
 
     /// create dynamic timer
-    /// @param interval function call interval in ticks
     /// @param fn timer function
-    /// @param arg timer function argument
-    /// @param type timer type, osTimerPeriodic (default) or osTimerOnce
-    /// @param name as null terminated string, default = null
-    /// @param startNow true (default): start now, false: start later
+    /// @param ctx timer function context
+    /// @param attributes
+    ///     - .interval: function call interval.
+    ///     - .type: timer type, osTimerPeriodic (default) or osTimerOnce
+    ///     - .name: as null terminated string, default = null
+    ///     - .startNow: true (default): start now, false: start later
     /// @return timer object
     /// @note cannot be called from ISR
-    template <typename Fn, typename Arg>
-    auto make_timer(etl::Time interval, Fn&& fn, Arg *arg, osTimerType_t type = osTimerPeriodic, const char *name = nullptr, bool startNow = true) {
+    template <typename Fn, typename Ctx>
+    auto timer(Fn&& fn, Ctx *ctx, TimerAttributes attributes) {
         osTimerAttr_t attr = {};
-        attr.name = name;
-        auto fp = static_cast<void (*)(Arg*)>(etl::forward<Fn>(fn));
-        auto res = TimerInterface(osTimerNew(reinterpret_cast<void (*)(void*)>(fp), type, reinterpret_cast<void*>(arg), &attr));
-        if (startNow) res.start(interval.tick);
+        attr.name = attributes.name;
+        
+        auto fp = static_cast<void (*)(Ctx*)>(etl::forward<Fn>(fn));
+        auto res = TimerInterface(osTimerNew(reinterpret_cast<void (*)(void*)>(fp), attributes.type, reinterpret_cast<void*>(ctx), &attr));
+        if (attributes.startNow) res.start(attributes.interval.tick);
+
         return etl::move(res); 
     }
     
     /// create dynamic timer
-    /// @param interval function call interval in ticks
     /// @param fn timer function
-    /// @param type timer type, osTimerPeriodic (default) or osTimerOnce
-    /// @param name as null terminated string, default = null
-    /// @param startNow true (default): start now, false: start later
+    /// @param attributes
+    ///     - .interval: function call interval.
+    ///     - .type: timer type, osTimerPeriodic (default) or osTimerOnce
+    ///     - .name: as null terminated string, default = null
+    ///     - .startNow: true (default): start now, false: start later
     /// @return timer object
     /// @note cannot be called from ISR
     template <typename Fn>
-    auto make_timer(etl::Time interval, Fn&& fn, osTimerType_t type = osTimerPeriodic, const char *name = nullptr, bool startNow = true) {
+    auto timer(Fn&& fn, TimerAttributes attributes) {
         osTimerAttr_t attr = {};
-        attr.name = name;
+        attr.name = attributes.name;
+        
         auto fp = static_cast<void (*)()>(etl::forward<Fn>(fn));
-        auto res = TimerInterface(osTimerNew(reinterpret_cast<void (*)(void*)>(fp), type, nullptr, &attr));
-        if (startNow) res.start(interval.tick);
+        auto res = TimerInterface(osTimerNew(reinterpret_cast<void (*)(void*)>(fp), attributes.type, nullptr, &attr));
+        if (attributes.startNow) 
+            res.start(attributes.interval.tick);
+        
         return etl::move(res); 
     }
+
+    /// return reference to the static timer
+    inline auto timer(Timer& tim) { return TimerInterface(tim.get()); }
+
+    /// return reference to timer pointer
+    inline auto timer(osTimerId_t tim) { return TimerInterface(tim); }
+
+    /// return reference to the dynamic timer
+    inline auto timer(TimerInterface& tim) { return TimerInterface(tim.get()); }
+
+    /// return reference to the moved dynamic timer
+    inline auto timer(TimerInterface&& tim) { return TimerInterface(etl::move(tim)); }
 
 }
 

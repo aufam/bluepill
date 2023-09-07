@@ -5,6 +5,35 @@
 #include "etl/tuple.h"
 #include <thread>
 
+namespace Project::etl::detail {
+    template <typename, auto>
+    struct ExtractMethod;
+
+    template <typename ClassType, typename ReturnType, typename... Args, auto method>
+    struct ExtractMethod<ReturnType (ClassType::*)(Args...), method> { 
+        using Class = ClassType;
+        using ClassPtr = Class*;
+        using Return = ReturnType;
+        using Fn = Return(Args...);
+        using Fp = Return(*)(ClassPtr, Args...);
+        static inline Return(*const fn)(ClassPtr, Args...) = +[] (ClassPtr self, Args... args) {
+            return (self->*method)(args...);
+        };
+    };
+
+    template <typename ClassType, typename ReturnType, typename... Args, auto method>
+    struct ExtractMethod<ReturnType (ClassType::*)(Args...) const, method> {
+        using Class = ClassType;
+        using ClassPtr = const Class*;
+        using Return = ReturnType;
+        using Fn = Return(Args...);
+        using Fp = Return(*)(ClassPtr, Args...);
+        static inline Return(*const fn)(ClassPtr, Args...) = +[] (ClassPtr self, Args... args) {
+            return (self->*method)(args...);
+        };
+    };
+}
+
 namespace Project::etl {
     /// function class that holds function pointer and context (alternative of capture list)
     template <typename T, typename... C> struct Function;
@@ -17,17 +46,17 @@ namespace Project::etl {
 
         Fn fn;                   ///< function pointer
         mutable Context context; ///< alternative of capture list in a lambda expression
-        
+
         /// construct from a functor (capture-less lambda expression, function pointer, or other invokable object)
         template <typename Functor, typename = disable_if_t<is_same_v<decay_t<Functor>, Function>>>
         constexpr Function(Functor&& fn, C... context)
-        : fn(static_cast<Fn>(etl::forward<Functor>(fn)))
-        , context{context...} {}
+                : fn(static_cast<Fn>(etl::forward<Functor>(fn)))
+                , context{context...} {}
 
         /// assign from a functor (capture-less lambda expression, function pointer, or other invokable object)
         template <typename Functor, typename = disable_if_t<is_same_v<decay_t<Functor>, Function>>>
         Function& operator=(Functor&& f) {
-            fn = static_cast<Fn>(etl::forward<Functor>(f)); return *this; 
+            fn = static_cast<Fn>(etl::forward<Functor>(f)); return *this;
         }
 
         /// copy constructor
@@ -43,9 +72,9 @@ namespace Project::etl {
 
         /// move constructor
         constexpr Function(Function&& other) noexcept : fn(etl::move(other.fn)), context(etl::move(other.context)) {
-            other.fn = nullptr; 
+            other.fn = nullptr;
         }
-        
+
         /// move assignment
         constexpr Function& operator=(Function&& other) noexcept {
             fn = etl::move(other.fn);
@@ -79,19 +108,19 @@ namespace Project::etl {
         typedef void Context;
 
         Fn fn; ///< function pointer, default null
-        
+
         /// empty constructor
         constexpr Function() : fn(nullptr) {}
 
         /// construct from a functor (capture-less lambda expression, function pointer, or other invokable object)
         template <typename Functor, typename = disable_if_t<is_same_v<decay_t<Functor>, Function>>>
         constexpr Function(Functor&& fn)
-        : fn(static_cast<Fn>(etl::forward<Functor>(fn))) {}
+                : fn(static_cast<Fn>(etl::forward<Functor>(fn))) {}
 
         /// assign from a functor (capture-less lambda expression, function pointer, or other invokable object)
         template <typename Functor, typename = disable_if_t<is_same_v<decay_t<Functor>, Function>>>
         constexpr Function& operator=(Functor&& f) {
-            fn = static_cast<Fn>(etl::forward<Functor>(f)); return *this; 
+            fn = static_cast<Fn>(etl::forward<Functor>(f)); return *this;
         }
 
         /// copy constructor
@@ -106,7 +135,7 @@ namespace Project::etl {
 
         /// move constructor
         constexpr Function(Function&& other) noexcept : fn(etl::exchange(other.fn, nullptr)) {}
-        
+
         /// move assignment
         constexpr Function& operator=(Function&& other) noexcept {
             if (&other == this) return *this;
@@ -125,15 +154,77 @@ namespace Project::etl {
 
         /// compare operator
         template <typename Functor>
-        constexpr bool operator==(Functor&& other) const { 
+        constexpr bool operator==(Functor&& other) const {
             if constexpr (etl::is_same_v<etl::decay_t<Functor>, Function<R(Args...), void*>>)
                 return other == *this;
-            else 
-                return fn == static_cast<Fn>(etl::forward<Functor>(other)); 
+            else
+                return fn == static_cast<Fn>(etl::forward<Functor>(other));
         }
 
         template <typename Functor>
         constexpr bool operator!=(Function&& other) const { return !operator==(etl::forward<Functor>(other)); }
+    };
+
+    /// function class specialization for Context = void*
+    template <typename R, typename... Args, typename C>
+    struct Function<R(Args...), C> {
+        typedef R Result;
+        typedef R (* Fn)(C, Args...);
+        typedef C Context;
+
+        Fn fn;           ///< function pointer, default null
+        Context context; ///< alternative of capture list, default null
+
+        /// empty constructor
+        constexpr Function() : fn(nullptr), context(nullptr) {}
+
+        /// construct from a functor (capture-less lambda expression, function pointer, or other invokable object)
+        template <typename Functor, typename = disable_if_t<is_same_v<decay_t<Functor>, Function>>>
+        constexpr Function(Functor&& fn, C context)
+                : fn(static_cast<Fn>(etl::forward<Functor>(fn)))
+                , context(context) {}
+
+        /// assign from a functor (capture-less lambda expression, function pointer, or other invokable object)
+        template <typename Functor, typename = disable_if_t<is_same_v<decay_t<Functor>, Function>>>
+        Function& operator=(Functor&& f) {
+            fn = static_cast<Fn>(etl::forward<Functor>(f)); return *this;
+        }
+
+        /// copy constructor
+        constexpr Function(const Function& other) : fn(other.fn), context(other.context) {}
+
+        /// copy assignment
+        constexpr Function& operator=(const Function& other) {
+            if (&other == this) return *this;
+            fn = other.fn;
+            context = other.context;
+            return *this;
+        }
+
+        /// move constructor
+        constexpr Function(Function&& other) noexcept
+                : fn(etl::exchange(other.fn, nullptr))
+                , context(etl::exchange(other.context, nullptr)) {}
+
+        /// move assignment
+        constexpr Function& operator=(Function&& other) noexcept {
+            if (&other == this) return *this;
+            fn = etl::exchange(other.fn, nullptr);
+            context = etl::exchange(other.context, nullptr);
+            return *this;
+        }
+
+        /// invoke operator
+        constexpr R operator()(Args... args) const { return fn ? fn(context, args...) : R(); }
+
+        /// return true if fn is not null
+        explicit constexpr operator bool() const { return fn; }
+
+        /// cast to function pointer
+        explicit constexpr operator Fn() const { return fn; }
+
+        constexpr bool operator==(const Function& other) const { return fn == other.fn && context == other.context; }
+        constexpr bool operator!=(const Function& other) const { return !operator==(other); }
     };
 
     /// function class specialization for Context = void*
@@ -146,16 +237,16 @@ namespace Project::etl {
 
         Fn fn;           ///< function pointer, default null
         Context context; ///< alternative of capture list, default null
-    
+
         /// empty constructor
         constexpr Function() : fn(nullptr), context(nullptr) {}
 
         /// construct from a functor (capture-less lambda expression, function pointer, or other invokable object)
         template <typename Functor, typename Ctx, typename = disable_if_t<is_same_v<decay_t<Functor>, Function>>>
         Function(Functor&& f, Ctx* ctx)
-        : fn(nullptr), context(reinterpret_cast<Context>(ctx)) {
+                : fn(nullptr), context(reinterpret_cast<Context>(ctx)) {
             auto pf = static_cast<R (*)(Ctx*, Args...)>(etl::forward<Functor>(f));
-            fn = reinterpret_cast<Fn>(pf); 
+            fn = reinterpret_cast<Fn>(pf);
         }
 
         /// construct from a functor (capture-less lambda expression, function pointer, or other invokable object)
@@ -172,7 +263,7 @@ namespace Project::etl {
             auto pf = static_cast<R (*)(Args...)>(etl::forward<Functor>(f));
             fn = wrapperFunc;
             context = reinterpret_cast<Context>(pf);
-            return *this; 
+            return *this;
         }
 
         /// copy constructor
@@ -188,9 +279,9 @@ namespace Project::etl {
 
         /// move constructor
         constexpr Function(Function&& other) noexcept
-            : fn(etl::exchange(other.fn, nullptr))
-            , context(etl::exchange(other.context, nullptr)) {}
-        
+                : fn(etl::exchange(other.fn, nullptr))
+                , context(etl::exchange(other.context, nullptr)) {}
+
         /// move assignment
         constexpr Function& operator=(Function&& other) noexcept {
             if (&other == this) return *this;
@@ -215,10 +306,10 @@ namespace Project::etl {
         explicit constexpr operator Function<R(Args...)>() const { return Fp(*this); }
 
         template <typename Functor>
-        constexpr bool operator==(Functor&& other) const { 
+        constexpr bool operator==(Functor&& other) const {
             if constexpr (etl::is_same_v<etl::decay_t<Functor>, Function>)
                 return fn == other.fn && context == other.context;
-            else 
+            else
                 return operator==(Function(etl::forward<Functor>(other)));
         }
 
@@ -238,11 +329,11 @@ namespace Project::etl {
     /// create function with no context
     template <typename T, typename Fn> constexpr auto
     function(Fn&& fn) { return Function<T>(etl::forward<Fn>(fn)); }
-     
+
     /// create function with context
     template <typename T, typename Context, typename Fn> auto
     function(Fn&& fn, Context* ctx) { return Function<T, void*>(etl::forward<Fn>(fn), ctx); }
-    
+
     /// create function from function pointer with no context
     template <typename R, typename... Args> constexpr auto
     function(R (*fn)(Args...)) { return Function<R(Args...)>(fn); }
@@ -254,6 +345,13 @@ namespace Project::etl {
     /// create function with context, capture by reference
     template <typename ...C, typename R> auto
     functionR(R (*fn)(C&...), C&... context) { return Function<R(), C&...>(fn, context...); }
+
+    /// bind a class method to etl function
+    template <auto method> constexpr auto
+    bind(typename detail::ExtractMethod<decltype(method), method>::ClassPtr self) {
+        using Extractor = detail::ExtractMethod<decltype(method), method>;
+        return Function<typename Extractor::Fn, typename Extractor::ClassPtr> { Extractor::fn, self };
+    }
 }
 
 #endif //ETL_FUNCTION_H

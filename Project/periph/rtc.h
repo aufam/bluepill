@@ -1,7 +1,7 @@
 #ifndef PERIPH_RTC_H
 #define PERIPH_RTC_H
 
-#include "../../Core/Inc/rtc.h"
+#include "Core/Inc/rtc.h"
 #include "etl/time.h"
 
 namespace Project::periph {
@@ -10,7 +10,7 @@ namespace Project::periph {
     /// @note requirements: no RTC output
     class RealTimeClock {
         inline static const char days[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-        inline static const auto minimumUpdateInterval = etl::Time::ms2time(500);
+        inline static const auto minimumUpdateInterval = etl::time::milliseconds(500);
         inline static auto lastUpdate = etl::Time(0);
     
     public:
@@ -21,14 +21,11 @@ namespace Project::periph {
         constexpr RealTimeClock() = default;
 
         RealTimeClock(const RealTimeClock&) = delete; ///< disable copy constructor
-        RealTimeClock(RealTimeClock&&) = delete;      ///< disable copy assignment
-
-        RealTimeClock& operator=(const RealTimeClock&) = delete;  ///< disable move constructor
-        RealTimeClock& operator=(RealTimeClock&&) = delete;       ///< disable move assignment
+        RealTimeClock& operator=(const RealTimeClock&) = delete;  ///< disable copy assignment
 
         /// get time and date and store to sTime and sDate
         void update() {
-            auto now = etl::Time::now();
+            auto now = etl::time::now();
             if (now - lastUpdate < minimumUpdateInterval) return;
 
             HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);

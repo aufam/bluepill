@@ -21,10 +21,7 @@ namespace Project::periph {
         constexpr explicit USBD(Buffer &rxBuffer) : rxBuffer(rxBuffer) {}
 
         USBD(const USBD&) = delete; ///< disable copy constructor
-        USBD(USBD&&) = delete;      ///< disable move constructor
-
         USBD& operator=(const USBD&) = delete;  ///< disable move constructor
-        USBD& operator=(USBD&&) = delete;       ///< disable move assignment
 
         /// set rx callback
         /// @param fn receive callback function

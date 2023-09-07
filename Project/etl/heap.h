@@ -2,12 +2,13 @@
 #define ETL_HEAP_H
 
 #include "FreeRTOS.h"
+#include "etl/getter_setter.h"
 
-namespace Project::etl {
+namespace Project::etl::heap {
 
-    inline auto heapGetFreeSize() { return xPortGetFreeHeapSize(); }
-
-    inline auto heapGetMinimumEverFreeSize() { return xPortGetMinimumEverFreeHeapSize(); }
+    inline const Getter<size_t, size_t(*)()> freeSize = { xPortGetFreeHeapSize };
+    inline const Getter<size_t, size_t(*)()> minimumEverFreeSize = { xPortGetMinimumEverFreeHeapSize };
+    
 }
 
 #endif

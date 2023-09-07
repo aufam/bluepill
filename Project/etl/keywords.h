@@ -21,7 +21,7 @@
 #define is ==           // python's is (should be used only for comparing a variable to a literal)
 #define is_not !=
 
-#define null nullptr    // kotlin's null
+#define null Project::etl::none // kotlin's null
 #define var auto        // kotlin's var
 #define val const auto  // kotlin's val
 #define fun auto        // kotlin's fun (should be used to define a function)

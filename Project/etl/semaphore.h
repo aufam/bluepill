@@ -9,22 +9,48 @@
 namespace Project::etl {
 
     /// FreeRTOS semaphore interface
-    /// @note requires cmsis os v2
+    /// @note requires cmsis os v2, USE_TRACE_FACILITY, SUPPORT_STATIC_ALLOCATION, SUPPORT_DYNAMIC_ALLOCATION
     /// @note should not be declared as const
     class SemaphoreInterface {
+        static_assert(configUSE_TRACE_FACILITY > 0, "configUSE_TRACE_FACILITY has to be activated");
+        static_assert(configSUPPORT_STATIC_ALLOCATION > 0, "configSUPPORT_STATIC_ALLOCATION has to be activated");
+        static_assert(configSUPPORT_DYNAMIC_ALLOCATION > 0, "configSUPPORT_DYNAMIC_ALLOCATION has to be activated");
+
     protected:
         osSemaphoreId_t id; ///< semaphore pointer
 
+        void referenceCounterInc() { if (id) ++reinterpret_cast<StaticSemaphore_t*>(id)->uxDummy8; }
+        void referenceCounterDec() { if (id) --reinterpret_cast<StaticSemaphore_t*>(id)->uxDummy8; }
+
     public:
-        /// default constructor
-        explicit constexpr SemaphoreInterface(osSemaphoreId_t id) : id(id) {}
+        /// empty constructor
+        constexpr SemaphoreInterface() : id(nullptr) {}
+
+        /// construct from semaphore pointer
+        explicit SemaphoreInterface(osSemaphoreId_t id) : id(id) {
+            referenceCounterInc();
+        }
+
+        /// copy constructor
+        SemaphoreInterface(const SemaphoreInterface& s) : id(s.id) {
+            referenceCounterInc();
+        }
+
+        /// copy assignment
+        SemaphoreInterface& operator=(const SemaphoreInterface& s) {
+            if (id == s.id) return *this;
+            detach();
+            id = s.id;
+            referenceCounterInc();
+            return *this;
+        }
 
         /// move constructor
         SemaphoreInterface(SemaphoreInterface&& s) : id(etl::exchange(s.id, nullptr)) {}
 
         /// move assignment
         SemaphoreInterface& operator=(SemaphoreInterface&& s) { 
-            if (this == &s) return *this;
+            if (id == s.id) return *this;
             detach(); 
             id = etl::exchange(s.id, nullptr); 
             return *this; 
@@ -32,20 +58,35 @@ namespace Project::etl {
 
         /// default destructor
         ~SemaphoreInterface() { detach(); }
-
-        SemaphoreInterface(const SemaphoreInterface&) = delete;               ///< disable copy constructor
-        SemaphoreInterface& operator=(const SemaphoreInterface&) = delete;    ///< disable copy assignment
         
         /// return true if id is not null
-        explicit operator bool() { return (bool) id; }
+        explicit operator bool() { return count() > 0; }
 
+        /// get the reference counter
+        uint32_t refcount() { return id ? reinterpret_cast<StaticSemaphore_t*>(id)->uxDummy8 : 0; }
+
+        /// get semaphore pointer
         osSemaphoreId_t get() { return id; }
+
+        /// delete resource and set id to null
+        /// @return osStatus
+        /// @note cannot be called from ISR
+        osStatus_t detach() { 
+            referenceCounterDec();
+            if (count() > 0) 
+                return osOK;
+            
+            return osSemaphoreDelete(etl::exchange(id, nullptr)); 
+        }
+
+        /// name as null terminated string
+        const char* getName() { return osSemaphoreGetName(id); }  
 
         /// acquire semaphore token, token counter will be decreased by one
         /// @param timeout default = timeInfinite
         /// @return osStatus
-        /// @note can be called from ISR if timeout == 0
-        osStatus_t acquire(etl::Time timeout = etl::timeInfinite) { return osSemaphoreAcquire(id, timeout.tick); }
+        /// @note can be called from ISR if timeout == time::immediate
+        osStatus_t acquire(etl::Time timeout = etl::time::infinite) { return osSemaphoreAcquire(id, timeout.tick); }
 
         /// release semaphore token, token counter will be increased by one
         /// @return osStatus
@@ -55,11 +96,6 @@ namespace Project::etl {
         /// get token counter
         /// @note can be called from ISR
         uint32_t count() { return osSemaphoreGetCount(id); }
-
-        /// delete resource and set id to null
-        /// @return osStatus
-        /// @note cannot be called from ISR
-        osStatus_t detach() { return osSemaphoreDelete(etl::exchange(id, nullptr)); }
 
         /// release operator
         SemaphoreInterface& operator++(int) { release(); return *this; }
@@ -74,6 +110,12 @@ namespace Project::etl {
         void operator--() { acquire(); }
     };
 
+    struct SemaphoreAttributes {
+        uint32_t maxCount = 1; 
+        uint32_t initialCount = 0; 
+        const char* name = nullptr;
+    };
+
     /// FreeRTOS static semaphore
     /// @note requires cmsis os v2
     /// @note should not be declared as const
@@ -82,7 +124,7 @@ namespace Project::etl {
 
     public:
         /// default constructor
-        constexpr Semaphore() : SemaphoreInterface(nullptr) {}
+        constexpr Semaphore() : SemaphoreInterface() {}
 
         Semaphore(const Semaphore&) = delete; ///< disable copy constructor
         Semaphore(Semaphore&& t) = delete;    ///< disable move constructor
@@ -91,18 +133,23 @@ namespace Project::etl {
         Semaphore& operator=(Semaphore&&) = delete;       ///< disable move assignment
 
         /// initiate semaphore
-        /// @param maxCount maximum token counter, default = 1
-        /// @param initialCount initial token counter, default = 0
-        /// @param name as null terminated string, default = null
+        /// @param attributes
+        ///     - .maxCount maximum token counter, default = 1
+        ///     - .initialCount initial token counter, default = 0
+        ///     - .name as null terminated string, default = null
         /// @return osStatus
         /// @note cannot be called from ISR
-        osStatus_t init(uint32_t maxCount = 1, uint32_t initialCount = 0, const char* name = nullptr) {
+        osStatus_t init(SemaphoreAttributes attributes = {}) {
             if (this->id) return osError;
+
             osSemaphoreAttr_t attr = {};
-            attr.name = name;
+            attr.name = attributes.name;
             attr.cb_mem = &controlBlock;
             attr.cb_size = sizeof(controlBlock);
-            this->id = osSemaphoreNew(maxCount, initialCount, &attr);
+            
+            this->id = osSemaphoreNew(attributes.maxCount, attributes.initialCount, &attr);
+            this->referenceCounterInc();
+            
             return osOK;
         }
 
@@ -113,16 +160,29 @@ namespace Project::etl {
     };    
     
     /// create dynamic semaphore
-    /// @param maxCount maximum token counter, default = 1
-    /// @param initialCount initial token counter, default = 0
-    /// @param name as null terminated string, default = null
+    /// @param attributes
+    ///     - .maxCount maximum token counter, default = 1
+    ///     - .initialCount initial token counter, default = 0
+    ///     - .name as null terminated string, default = null
     /// @return semaphore object
     /// @note cannot be called from ISR
-    inline auto make_semaphore(uint32_t maxCount = 1, uint32_t initialCount = 0, const char* name = nullptr) {
+    inline auto semaphore(SemaphoreAttributes attributes = {}) {
         osSemaphoreAttr_t attr = {};
-        attr.name = name;
-        return SemaphoreInterface(osSemaphoreNew(maxCount, initialCount, &attr));
+        attr.name = attributes.name;
+        return SemaphoreInterface(osSemaphoreNew(attributes.maxCount, attributes.initialCount, &attr));
     }
+
+    /// return reference to the static semaphore
+    inline auto semaphore(Semaphore& sem) { return SemaphoreInterface(sem.get()); }
+
+    /// return reference to semaphore pointer
+    inline auto semaphore(osSemaphoreId_t sem) { return SemaphoreInterface(sem); }
+
+    /// return reference to the dynamic semaphore
+    inline auto semaphore(SemaphoreInterface& sem) { return SemaphoreInterface(sem.get()); }
+
+    /// return reference to the moved dynamic semaphore
+    inline auto semaphore(SemaphoreInterface&& sem) { return SemaphoreInterface(etl::move(sem)); }
 }
 
 #endif

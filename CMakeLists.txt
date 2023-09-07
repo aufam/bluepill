@@ -80,6 +80,7 @@ include_directories(
         Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
         Drivers/CMSIS/Device/ST/STM32F1xx/Include
         Drivers/CMSIS/Include
+        ${CMAKE_HOME_DIRECTORY}
         Project)
 
 # source files
