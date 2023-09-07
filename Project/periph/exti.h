@@ -17,10 +17,7 @@ namespace Project::periph {
         constexpr Exti() = default; ///< default constructor
 
         Exti(const Exti&) = delete; ///< disable copy constructor
-        Exti(Exti&&) = delete;      ///< disable move constructor
-
         Exti& operator=(const Exti&) = delete;  ///< disable copy assignment
-        Exti& operator=(Exti&&) = delete;       ///< disable move assignment
 
         /// set exti callback of given GPIO pin
         /// @param pin GPIO_PIN_X see stm32fXxx_hal_gpio.h
