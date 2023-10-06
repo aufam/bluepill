@@ -114,13 +114,17 @@ target_link_libraries(${PROJECT_NAME}.elf io_expander)
 add_subdirectory(Middlewares/Third_Party/stm32_lcd)
 target_link_libraries(${PROJECT_NAME}.elf lcd)
 
-# add lcd
+# add oled
 add_subdirectory(Middlewares/Third_Party/stm32_oled)
 target_link_libraries(${PROJECT_NAME}.elf oled)
 
-# add lcd
+# add oxygen
 add_subdirectory(Middlewares/Third_Party/stm32_oxygen)
 target_link_libraries(${PROJECT_NAME}.elf oxygen)
+
+# add power meter
+add_subdirectory(Middlewares/Third_Party/stm32_power_meter)
+target_link_libraries(${PROJECT_NAME}.elf power_meter)
 
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)

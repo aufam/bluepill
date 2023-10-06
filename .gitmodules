@@ -23,3 +23,6 @@
 [submodule "Middlewares/Third_Party/stm32_oxygen"]
 	path = Middlewares/Third_Party/stm32_oxygen
 	url = git@github.com:aufam/stm32_oxygen.git
+[submodule "Middlewares/Third_Party/stm32_power_meter"]
+	path = Middlewares/Third_Party/stm32_power_meter
+	url = git@github.com:aufam/stm32_power_meter.git
