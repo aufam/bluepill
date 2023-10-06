@@ -17,3 +17,6 @@
 [submodule "Middlewares/Third_Party/stm32_lcd"]
 	path = Middlewares/Third_Party/stm32_lcd
 	url = git@github.com:aufam/stm32_lcd.git
+[submodule "Middlewares/Third_Party/stm32_oled"]
+	path = Middlewares/Third_Party/stm32_oled
+	url = git@github.com:aufam/stm32_oled

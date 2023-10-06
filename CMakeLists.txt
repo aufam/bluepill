@@ -115,6 +115,10 @@ target_link_libraries(${PROJECT_NAME}.elf io_expander)
 add_subdirectory(Middlewares/Third_Party/stm32_lcd)
 target_link_libraries(${PROJECT_NAME}.elf lcd)
 
+# add lcd
+add_subdirectory(Middlewares/Third_Party/stm32_oled)
+target_link_libraries(${PROJECT_NAME}.elf oled)
+
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
