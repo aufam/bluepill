@@ -107,6 +107,10 @@ target_link_libraries(${PROJECT_NAME}.elf bldc)
 add_subdirectory(Middlewares/Third_Party/stm32_current_sense)
 target_link_libraries(${PROJECT_NAME}.elf current_sense)
 
+# add io expander
+add_subdirectory(Middlewares/Third_Party/stm32_io_expander)
+target_link_libraries(${PROJECT_NAME}.elf io_expander)
+
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
