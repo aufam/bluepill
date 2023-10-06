@@ -108,7 +108,7 @@ namespace Project {
 
         static void decode(const uint8_t* buf, PowerMeterValues& values);
 
-        static void rxCallback(PowerMeter *self, const uint8_t* buf, size_t len);
+        void rxCallback(const uint8_t* buf, size_t len);
 
         enum : uint8_t {
             CMD_READ_HOLDING_REGISTER   = 0x03,

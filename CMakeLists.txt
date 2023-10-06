@@ -56,7 +56,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register -Wno-literal-suffix")
 
 # defines
 add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F103xB)
-add_definitions(-DUSE_PROJECT)
 
 # library
 add_link_options(-specs=nano.specs -lm -lc)
@@ -68,42 +67,55 @@ add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${MAP},--script=${LI
 
 # include
 include_directories(
-        Core/Inc
-        Drivers/STM32F1xx_HAL_Driver/Inc
-        Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
-        Middlewares/Third_Party/FreeRTOS/Source/include
-        Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
-        Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3
-        Drivers/CMSIS/Device/ST/STM32F1xx/Include
-        Drivers/CMSIS/Include
-        ${CMAKE_HOME_DIRECTORY}
-        Project)
+	Core/Inc
+	Drivers/CMSIS/Device/ST/STM32F1xx/Include
+	Drivers/CMSIS/Include
+	Drivers/STM32F1xx_HAL_Driver/Inc
+	Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
+	Middlewares/Third_Party/FreeRTOS/Source/include
+	Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
+	Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3
+	${CMAKE_HOME_DIRECTORY}
+	Project
+)
 
 # source files
 file(GLOB_RECURSE SOURCES
-        Core/*.*
-        Middlewares/*.*
-        Drivers/*.*
-        Project/*.*)
+	Core/*.*
+    Middlewares/ST/*.*
+    Middlewares/Third_Party/FreeRTOS/*.*
+	Drivers/*.*
+	Project/*.*
+)
 
 # build elf
 add_executable(${PROJECT_NAME}.elf ${SOURCES} ${LINKER_SCRIPT})
+
+# add etl
+add_subdirectory(Middlewares/Third_Party/etl)
+target_link_libraries(${PROJECT_NAME}.elf etl)
+
+# add periph
+add_subdirectory(Middlewares/Third_Party/stm32_hal_interface)
+target_link_libraries(${PROJECT_NAME}.elf periph)
 
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
 add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${HEX_FILE}
-        COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
-        COMMENT "Building ${HEX_FILE}
-        Building ${BIN_FILE}")
+    COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${HEX_FILE}
+    COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
+    COMMENT "Building ${HEX_FILE}\nBuilding ${BIN_FILE}"
+)
 
 # flash using st-flash
 add_custom_target(flash
-        COMMAND st-flash --reset write ${BIN_FILE} 0x08000000
-        DEPENDS ${BIN_FILE})
+    COMMAND st-flash --reset write ${BIN_FILE} 0x08000000
+    DEPENDS ${BIN_FILE}
+)
 
 # flash using dfu-util
 add_custom_target(dfu
-        COMMAND dfu-util -a 0 -D ${BIN_FILE} -s 0x08000000:leave
-        DEPENDS ${BIN_FILE})
+    COMMAND dfu-util -a 0 -D ${BIN_FILE} -s 0x08000000:leave
+    DEPENDS ${BIN_FILE}
+)

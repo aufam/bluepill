@@ -41,16 +41,18 @@ static const uint16_t crcTable[] = {
 fun PowerMeter::init() -> void {
     uart.setBaudRate(9600);
     uart.init(); 
-    uart.setRxCallback(rxCallback, this);
+    uart.rxCallbackList.push(etl::bind<&PowerMeter::rxCallback>(this));
     notifier.init();
-    timer.init(
-        lambda (PowerMeter* self) {
-            val bufferSend = makeBufferSend(self->address, CMD_READ_INPUT_REGISTER, REG_VOLTAGE, REG_TOTAL);
-            memcpy(self->uart.rxBuffer.data(), bufferSend.data(), bufferSend.len());
-            self->uart.transmit(self->uart.rxBuffer.data(), bufferSend.len());
-        }, this, 
-        {.interval=timeout}
-    );
+    timer.init({
+        .function={
+            lambda (PowerMeter* self) {
+                val bufferSend = makeBufferSend(self->address, CMD_READ_INPUT_REGISTER, REG_VOLTAGE, REG_TOTAL);
+                memcpy(self->uart.rxBuffer.data(), bufferSend.data(), bufferSend.len());
+                self->uart.transmit(self->uart.rxBuffer.data(), bufferSend.len());
+            }, this, 
+        },
+        .interval=timeout
+    });
 }
 
 fun PowerMeter::deinit() -> void {
@@ -150,7 +152,7 @@ fun PowerMeter::decode(const uint8_t* buf, PowerMeterValues& values) -> void {
     values.alarm        = decode(buf, REG_ALARM) == 0xFFFF;
 }
 
-fun PowerMeter::rxCallback(PowerMeter *self, const uint8_t* buf, size_t len) -> void {
+fun PowerMeter::rxCallback(const uint8_t* buf, size_t len) -> void {
     val values = START_BYTES + (REG_TOTAL * 2) + STOP_BYTES;
     val getter = START_BYTES + 2 + STOP_BYTES;
     val setter = BufferSend::size();
@@ -158,14 +160,14 @@ fun PowerMeter::rxCallback(PowerMeter *self, const uint8_t* buf, size_t len) -> 
     val calib  = 6;
 
     if (len == values)
-        decode(buf, self->values);
+        decode(buf, values);
     elif (len == getter) 
-        self->notifier | FLAG_GETTER;
+        notifier | FLAG_GETTER;
     elif (len == setter) 
-        self->notifier | FLAG_SETTER;
+        notifier | FLAG_SETTER;
     elif (len == reset)  
-        self->notifier | FLAG_SETTER;
+        notifier | FLAG_SETTER;
     elif (len == calib)  
-        self->notifier | FLAG_SETTER;
+        notifier | FLAG_SETTER;
 }
 

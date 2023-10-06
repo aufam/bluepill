@@ -43,11 +43,20 @@ namespace Project::bldc {
         etl::Array<uint8_t, 64> txBuffer = {};
         PacketProcess packetProcess = {};
 
+        struct ConstructorCANArgs { BLDCValues& values; periph::CAN& can; };
+        struct ConstructorUARTArgs { BLDCValues& values; periph::UART& uart; };
+
         /// construct CAN mode
-        constexpr BLDC(BLDCValues& values, periph::CAN& can) : values(values), can(&can), uart(nullptr) {}
+        /// @param args
+        ///     - .values reference to values buffer
+        ///     - .uart reference to periph::CAN object
+        constexpr BLDC(ConstructorCANArgs args) : values(args.values), can(&args.can), uart(nullptr) {}
 
         /// construct UART mode
-        constexpr BLDC(BLDCValues& values, periph::UART& uart) : values(values), can(nullptr), uart(&uart) {}
+        /// @param args
+        ///     - .values reference to values buffer
+        ///     - .uart reference to periph::UART object
+        constexpr BLDC(ConstructorUARTArgs args) : values(args.values), can(nullptr), uart(&args.uart) {}
 
         /// init CAN and/or UART mode
         void init();
@@ -150,8 +159,8 @@ namespace Project::bldc {
         void setCurrentBrake(float value);
         void setSpeed(float value);
 
-        static void uartRxCallback(BLDC* self, const uint8_t* data, size_t len);
-        static void canRxCallback(BLDC* self, periph::CAN::Message& msg);
+        void uartRxCallback(const uint8_t* data, size_t len);
+        void canRxCallback(periph::CAN::Message& msg);
     };
 }
 

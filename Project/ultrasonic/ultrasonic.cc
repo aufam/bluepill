@@ -7,7 +7,7 @@ fun Ultrasonic::init() -> void {
     trigger.init({.mode=GPIO_MODE_OUTPUT_PP, .pull=GPIO_NOPULL, .speed=GPIO_SPEED_FREQ_HIGH});
     event.init();
     inputCapture.init();
-    inputCapture.setCallback(lambda (Ultrasonic* self) { self->inputCaptureCallback(); }, this);
+    inputCapture.callback = {lambda (Ultrasonic* self) { self->inputCaptureCallback(); }, this};
 }
 
 fun Ultrasonic::deinit() -> void {

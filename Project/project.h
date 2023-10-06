@@ -13,6 +13,20 @@ void project_init(); ///< project initialization. should be added in main functi
 
 #ifdef __cplusplus
 }
+
+#include "periph/all.h"
+
+// periph instances
+namespace Project::periph {
+    inline ADCD adc1 { .hadc=hadc1 };
+    inline CAN can { .hcan=hcan };
+    inline Encoder encoder1 { .htim=htim1 };
+    inline I2C i2c2 { .hi2c=hi2c2 };
+    inline PWM pwm3channel1 { .htim=htim3, .channel=TIM_CHANNEL_1 };
+    inline UART uart1 { .huart=huart1 };
+    inline UART uart2 { .huart=huart2 };
+}
+
 #endif
 
 #endif // PROJECT_H

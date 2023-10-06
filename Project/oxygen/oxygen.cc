@@ -6,20 +6,21 @@ using namespace Project;
 fun Oxygen::init() -> void { 
     uart.setBaudRate(9600);
     uart.init(); 
-    uart.setRxCallback(rxCallback, this);
+    uart.rxCallbackList.push(etl::bind<&Oxygen::rxCallback>(this));
 #if PROJECT_OXYGEN_IS_USING_NOTIFIER
     notifier.init(); 
 #endif
 }
 
 fun Oxygen::deinit() -> void { 
+    uart.rxCallbackList.pop(etl::bind<&Oxygen::rxCallback>(this));
     uart.deinit(); 
 #if PROJECT_OXYGEN_IS_USING_NOTIFIER
     notifier.deinit(); 
 #endif
 }
 
-fun Oxygen::rxCallback(Oxygen *self, const uint8_t* buf, size_t len) -> void {
+fun Oxygen::rxCallback(const uint8_t* buf, size_t len) -> void {
     // check len and start bytes
     if (len != 12) return;
     if (buf[0] != 0x16) return; // head
@@ -34,12 +35,12 @@ fun Oxygen::rxCallback(Oxygen *self, const uint8_t* buf, size_t len) -> void {
     if (checksum != buf[len - 1]) return;
 
     // decode
-    self->values.concentrate = etl::safe_div<float>(buf[3] << 8 | buf[4], 10.f);
-    self->values.flow        = etl::safe_div<float>(buf[5] << 8 | buf[6], 10.f);
-    self->values.temperature = etl::safe_div<float>(buf[7] << 8 | buf[8], 10.f);
+    values.concentrate = etl::safe_div<float>(buf[3] << 8 | buf[4], 10.f);
+    values.flow        = etl::safe_div<float>(buf[5] << 8 | buf[6], 10.f);
+    values.temperature = etl::safe_div<float>(buf[7] << 8 | buf[8], 10.f);
 
     // notify
 #if PROJECT_OXYGEN_IS_USING_NOTIFIER
-    self->notifier.setFlags(0b1);
+    notifier.setFlags(0b1);
 #endif
 }

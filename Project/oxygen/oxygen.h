@@ -30,7 +30,14 @@ namespace Project {
 #if PROJECT_OXYGEN_IS_USING_NOTIFIER
         etl::Event notifier;
 #endif
-        explicit constexpr Oxygen(OxygenValues &values, periph::UART &uart) : values(values), uart(uart) {}
+
+        struct ConstructorArgs {OxygenValues &values; periph::UART &uart;};
+
+        /// default constructor
+        /// @param args
+        ///     - .values reference to values buffer
+        ///     - .uart reference to periph::UART object
+        explicit constexpr Oxygen(ConstructorArgs args) : values(args.values), uart(args.uart) {}
 
         /// init uart and notifier
         void init();
@@ -48,7 +55,7 @@ namespace Project {
         const float& temperature = values.temperature;
     
     private:
-        static void rxCallback(Oxygen *self, const uint8_t* buf, size_t len);
+        void rxCallback(const uint8_t* buf, size_t len);
     };
 }
 

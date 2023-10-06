@@ -19,9 +19,23 @@ namespace Project {
     public:
         periph::I2C& i2c;
         uint8_t address; ///< device 7 bit address
+
+        struct Constructor1Args { periph::I2C& i2c; uint8_t address;};
+        struct Constructor2Args { periph::I2C& i2c; bool a2, a1, a0;};
         
-        constexpr IOExpander(periph::I2C& i2c, uint8_t address) : i2c(i2c), address(address) {}
-        constexpr IOExpander(periph::I2C& i2c, bool a2, bool a1, bool a0) : i2c(i2c), address(addressReference(a2, a1, a0)) {}
+        /// construct with specified address
+        /// @param args
+        ///     - .i2c reference to periph::I2C object 
+        ///     - .address device address
+        constexpr IOExpander(Constructor1Args args) : i2c(args.i2c), address(args.address) {}
+
+        /// construct with specified input pins state
+        /// @param args
+        ///     - .i2c reference to periph::I2C object 
+        ///     - .a2 input pin a2 state
+        ///     - .a1 input pin a1 state
+        ///     - .a0 input pin a0 state
+        constexpr IOExpander(Constructor2Args args) : i2c(args.i2c), address(addressReference(args.a2, args.a1, args.a0)) {}
 
         IOExpander(const IOExpander&) = delete; ///< disable copy constructor
         IOExpander& operator=(const IOExpander&) = delete; ///< disable copy assignment
@@ -150,7 +164,10 @@ namespace Project {
         explicit operator bool() const { return portExpander || portGPIO; }
 
         /// init IO and turn off
-        /// @param mode GPIO_MODE_INPUT or GPIO_MODE_OUTPUT_PP
+        /// @param args
+        ///     - .mode GPIO_MODE_xxx
+        ///     - .pull @ref GPIO_NOPULL (default), @ref GPIO_PULLUP, @ref GPIO_PULLDOWN
+        ///     - .speed @ref GPIO_SPEED_FREQ_LOW (default), @ref GPIO_SPEED_FREQ_MEDIUM, @ref GPIO_SPEED_FREQ_HIGH
         void init(periph::GPIO::InitArgs args) const {
             if (portExpander)
                 IOExpander<2>::GPIO{portExpander, pin, activeMode}.init(args);
