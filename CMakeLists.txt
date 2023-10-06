@@ -103,6 +103,10 @@ target_link_libraries(${PROJECT_NAME}.elf periph)
 add_subdirectory(Middlewares/Third_Party/stm32_bldc)
 target_link_libraries(${PROJECT_NAME}.elf bldc)
 
+# add current sense
+add_subdirectory(Middlewares/Third_Party/stm32_current_sense)
+target_link_libraries(${PROJECT_NAME}.elf current_sense)
+
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
