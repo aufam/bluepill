@@ -7,9 +7,9 @@
 using namespace Project;
 using namespace Project::etl::literals;
 
-var &encoder = periph::encoder1;
-
 fun mainThread() {
+    var &encoder = periph::encoder1;
+
     var oled = Oled({.i2c=periph::i2c2});
     oled.init();
 
@@ -18,42 +18,37 @@ fun mainThread() {
 
     var buttonUp = periph::Exti {
         .pin=button_up_Pin,
-        .callback={
-            lambda (var thd) {
-                thd->setFlags(1 << EVENT_BT_UP);
-            }, &thd
-        }
+        .callback={ lambda (var thd) { thd->setFlags(1 << EVENT_BT_UP); }, &thd}
     };
-
     buttonUp.init();
 
-    // periph::exti.setCallback(button_up_Pin, lambda (var thd) { 
-    //     thd->setFlags(1 << EVENT_BT_UP); }, 
-    // &thd);
+    var buttonDown = periph::Exti {
+        .pin=button_down_Pin,
+        .callback={ lambda (var thd) { thd->setFlags(1 << EVENT_BT_DOWN); }, &thd},
+    };
+    buttonDown.init();
 
-    // periph::exti.setCallback(button_down_Pin, lambda (var thd) { 
-    //     thd->setFlags(1 << EVENT_BT_DOWN); }, 
-    // &thd);
+    var buttonRight = periph::Exti {
+        .pin=button_right_Pin,
+        .callback={ lambda (var thd) { thd->setFlags(1 << EVENT_BT_RIGHT); }, &thd},
+    };
+    buttonRight.init();
 
-    // periph::exti.setCallback(button_right_Pin, lambda (var thd) { 
-    //     thd->setFlags(1 << EVENT_BT_RIGHT); }, 
-    // &thd);
+    var buttonLeft = periph::Exti {
+        .pin=button_left_Pin,
+        .callback={ lambda (var thd) { thd->setFlags(1 << EVENT_BT_LEFT); }, &thd},
+    };
+    buttonLeft.init();
 
-    // periph::exti.setCallback(button_left_Pin, lambda (var thd) { 
-    //     thd->setFlags(1 << EVENT_BT_LEFT); }, 
-    // &thd);
+    var buttonRot = periph::Exti {
+        .pin=button_rot_Pin,
+        .callback={ lambda (var thd) { thd->setFlags(1 << EVENT_BT_ROT); }, &thd},
+    };
+    buttonRot.init();
 
-    // periph::exti.setCallback(button_rot_Pin, lambda (var thd) { 
-    //     thd->setFlags(1 << EVENT_BT_ROT); }, 
-    // &thd);
-
-    // encoder.setIncrementCB(lambda (var thd) { 
-    //     thd->setFlags(1 << EVENT_ROT_UP); }, 
-    // &thd);
-
-    // encoder.setDecrementCB(lambda (var thd) { 
-    //     thd->setFlags(1 << EVENT_ROT_DOWN); }, 
-    // &thd);
+    encoder.incrementCallback = {lambda (var thd) { thd->setFlags(1 << EVENT_ROT_UP); }, &thd};
+    encoder.decrementCallback = {lambda (var thd) { thd->setFlags(1 << EVENT_ROT_DOWN); }, &thd};
+    encoder.init();
 
     var f = etl::string();
     oled << "Hello World!\n";
@@ -61,15 +56,13 @@ fun mainThread() {
 
     for (;;) {
         // wait flag and print it to oled
-        val catchedFlags = etl::this_thread::waitFlagsAny();
-        val eventNumber = etl::count_trailing_zeros(catchedFlags.get());
+        val flag = etl::this_thread::waitFlagsAny();
+        val eventNumber = etl::count_trailing_zeros(flag.get());
         oled << f("%lu", eventNumber);
     }
 }
 
 fun project_init() -> void {
-    encoder.init();
-
     // assign to static variable to ensure the lifetime extends the scope
     var static s = etl::thread({.function=mainThread, .stackSize=256, .prio=osPriorityAboveNormal1});
 }
