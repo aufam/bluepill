@@ -126,6 +126,10 @@ target_link_libraries(${PROJECT_NAME}.elf oxygen)
 add_subdirectory(Middlewares/Third_Party/stm32_power_meter)
 target_link_libraries(${PROJECT_NAME}.elf power_meter)
 
+# add ultrasonic
+add_subdirectory(Middlewares/Third_Party/stm32_ultrasonic)
+target_link_libraries(${PROJECT_NAME}.elf ultrasonic)
+
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
