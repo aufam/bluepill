@@ -14,3 +14,6 @@
 [submodule "Middlewares/Third_Party/stm32_io_expander"]
 	path = Middlewares/Third_Party/stm32_io_expander
 	url = git@github.com:aufam/stm32_io_expander
+[submodule "Middlewares/Third_Party/stm32_lcd"]
+	path = Middlewares/Third_Party/stm32_lcd
+	url = git@github.com:aufam/stm32_lcd.git
