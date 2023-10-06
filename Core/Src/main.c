@@ -58,7 +58,7 @@
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-__weak project_init() {}
+__weak void project_init() {}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/

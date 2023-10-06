@@ -1,6 +1,8 @@
 #ifndef PROJECT_H
 #define PROJECT_H
 
+#include "cmsis_os2.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -14,10 +16,12 @@ void project_init(); ///< project initialization. should be added in main functi
 
 #include "periph/all.h"
 
+// periph instances
 namespace Project::periph {
-    ADCD adc1 {.hadc=hadc1};
-    PWM pwm1channel1 {.htim=htim1, .channel=TIM_CHANNEL_1};
+    inline ADCD adc1 { .hadc=hadc1 };
+    inline PWM pwm1channel1 { .htim=htim1, .channel=TIM_CHANNEL_1 };
 }
 
 #endif
+
 #endif // PROJECT_H
