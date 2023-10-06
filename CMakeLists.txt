@@ -82,7 +82,6 @@ include_directories(
 # source files
 file(GLOB_RECURSE SOURCES
 	Core/*.*
-    Middlewares/ST/*.*
     Middlewares/Third_Party/FreeRTOS/*.*
 	Drivers/*.*
 	Project/*.*
@@ -118,6 +117,10 @@ target_link_libraries(${PROJECT_NAME}.elf lcd)
 # add lcd
 add_subdirectory(Middlewares/Third_Party/stm32_oled)
 target_link_libraries(${PROJECT_NAME}.elf oled)
+
+# add lcd
+add_subdirectory(Middlewares/Third_Party/stm32_oxygen)
+target_link_libraries(${PROJECT_NAME}.elf oxygen)
 
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)

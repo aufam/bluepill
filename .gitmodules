@@ -20,3 +20,6 @@
 [submodule "Middlewares/Third_Party/stm32_oled"]
 	path = Middlewares/Third_Party/stm32_oled
 	url = git@github.com:aufam/stm32_oled
+[submodule "Middlewares/Third_Party/stm32_oxygen"]
+	path = Middlewares/Third_Party/stm32_oxygen
+	url = git@github.com:aufam/stm32_oxygen.git
