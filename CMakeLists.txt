@@ -99,6 +99,10 @@ target_link_libraries(${PROJECT_NAME}.elf etl)
 add_subdirectory(Middlewares/Third_Party/stm32_hal_interface)
 target_link_libraries(${PROJECT_NAME}.elf periph)
 
+# add bldc
+add_subdirectory(Middlewares/Third_Party/stm32_bldc)
+target_link_libraries(${PROJECT_NAME}.elf bldc)
+
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
