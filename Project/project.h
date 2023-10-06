@@ -2,12 +2,6 @@
 #define PROJECT_H
 
 #ifdef __cplusplus
-#include "periph/adc.h"
-#include "periph/flash.h"
-#include "periph/gpio.h"
-#include "periph/i2c.h"
-#include "periph/usb.h"
-
 extern "C" {
 #endif
 
@@ -17,6 +11,13 @@ void project_init(); ///< project initialization. should be added in main functi
 
 #ifdef __cplusplus
 }
-#endif
 
+#include "periph/all.h"
+
+namespace Project::periph {
+    ADCD adc1 {.hadc=hadc1};
+    PWM pwm1channel1 {.htim=htim1, .channel=TIM_CHANNEL_1};
+}
+
+#endif
 #endif // PROJECT_H

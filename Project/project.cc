@@ -1,7 +1,5 @@
 #include "project.h"
-#include "etl/all.h"
-#include "oled/oled.h"
-#include "periph/all.h"
+#include "etl/thread.h"
 #include "etl/keywords.h"
 
 using namespace Project;
@@ -12,7 +10,7 @@ var f = etl::string();
 fun mainThread() {
     periph::adc1.init();
 
-    periph::usb.setRxCallback(lambda (auto buf, auto len) {
+    periph::usb.rxCallbackList.push(lambda (auto buf, auto len) {
         *const_cast<uint8_t*>(buf + len) = '\0'; // manually add null terminator
         val &str = etl::string_cast<64>(buf);
         if (str is "adc")
@@ -29,5 +27,5 @@ fun mainThread() {
 
 fun project_init() -> void {
     var static thread = etl::Thread<256>();
-    thread.init(mainThread, {.prio=osPriorityAboveNormal, .name="Main Thread"});
+    thread.init({.function=mainThread, .prio=osPriorityAboveNormal, .name="Main Thread"});
 }
