@@ -29,3 +29,9 @@
 [submodule "Middlewares/Third_Party/stm32_ultrasonic"]
 	path = Middlewares/Third_Party/stm32_ultrasonic
 	url = https://github.com/aufam/stm32_ultrasonic
+[submodule "Middlewares/Third_Party/stm32_modbus"]
+	path = Middlewares/Third_Party/stm32_modbus
+	url = https://github.com/aufam/stm32_modbus.git
+[submodule "Middlewares/Third_Party/stm32_wizchip"]
+	path = Middlewares/Third_Party/stm32_wizchip
+	url = https://github.com/aufam/stm32_wizchip.git
