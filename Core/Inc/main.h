@@ -65,6 +65,10 @@ void Error_Handler(void);
 #define button_up_Pin GPIO_PIN_15
 #define button_up_GPIO_Port GPIOC
 #define button_up_EXTI_IRQn EXTI15_10_IRQn
+#define CS_Pin GPIO_PIN_4
+#define CS_GPIO_Port GPIOA
+#define RESET_Pin GPIO_PIN_0
+#define RESET_GPIO_Port GPIOB
 #define button_down_Pin GPIO_PIN_12
 #define button_down_GPIO_Port GPIOB
 #define button_down_EXTI_IRQn EXTI15_10_IRQn
@@ -74,6 +78,7 @@ void Error_Handler(void);
 #define button_left_Pin GPIO_PIN_5
 #define button_left_GPIO_Port GPIOB
 #define button_left_EXTI_IRQn EXTI9_5_IRQn
+
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

@@ -18,6 +18,13 @@ project(bluepill C CXX ASM)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 
+# user defines
+add_definitions(
+    -DF103_USE_CAN                      # since F103 can't use CAN and USB at the same time, we have to choose one
+    -DETL_ASYNC_N_CHANNELS=4            # number of tasks that handle asynchronous functions
+    -DETL_ASYNC_TASK_THREAD_SIZE=384    # the size of each task
+)
+
 # Enable assembler files preprocessing
 add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-x$<SEMICOLON>assembler-with-cpp>)
 
@@ -52,7 +59,7 @@ add_link_options(-mcpu=cortex-m3 -mthumb -mthumb-interwork)
 add_compile_options(-Wall -Wextra -Wundef)
 add_compile_options(-Wno-double-promotion)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register -Wno-literal-suffix")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register -Wno-literal-suffix -Wno-attributes")
 
 # defines
 add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F103xB)
@@ -75,6 +82,10 @@ include_directories(
 	Middlewares/Third_Party/FreeRTOS/Source/include
 	Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
 	Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3
+    Middlewares/ST/STM32_USB_Device_Library/Core/Inc
+    Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
+    USB_DEVICE/App
+    USB_DEVICE/Target
 	${CMAKE_HOME_DIRECTORY}
 	Project
 )
@@ -82,8 +93,10 @@ include_directories(
 # source files
 file(GLOB_RECURSE SOURCES
 	Core/*.*
+    Middlewares/ST/*.*
     Middlewares/Third_Party/FreeRTOS/*.*
 	Drivers/*.*
+    USB_DEVICE/*.*
 	Project/*.*
 )
 
@@ -98,37 +111,45 @@ target_link_libraries(${PROJECT_NAME}.elf etl)
 add_subdirectory(Middlewares/Third_Party/stm32_hal_interface)
 target_link_libraries(${PROJECT_NAME}.elf periph)
 
-# add bldc
-add_subdirectory(Middlewares/Third_Party/stm32_bldc)
-target_link_libraries(${PROJECT_NAME}.elf bldc)
-
-# add current sense
-add_subdirectory(Middlewares/Third_Party/stm32_current_sense)
-target_link_libraries(${PROJECT_NAME}.elf current_sense)
-
-# add io expander
-add_subdirectory(Middlewares/Third_Party/stm32_io_expander)
-target_link_libraries(${PROJECT_NAME}.elf io_expander)
-
-# add lcd
-add_subdirectory(Middlewares/Third_Party/stm32_lcd)
-target_link_libraries(${PROJECT_NAME}.elf lcd)
-
 # add oled
 add_subdirectory(Middlewares/Third_Party/stm32_oled)
 target_link_libraries(${PROJECT_NAME}.elf oled)
 
-# add oxygen
-add_subdirectory(Middlewares/Third_Party/stm32_oxygen)
-target_link_libraries(${PROJECT_NAME}.elf oxygen)
+# add wizchip
+add_subdirectory(Middlewares/Third_Party/stm32_wizchip)
+target_link_libraries(${PROJECT_NAME}.elf wizchip)
 
-# add power meter
-add_subdirectory(Middlewares/Third_Party/stm32_power_meter)
-target_link_libraries(${PROJECT_NAME}.elf power_meter)
+# # add modbus
+# add_subdirectory(Middlewares/Third_Party/stm32_modbus)
+# target_link_libraries(${PROJECT_NAME}.elf modbus)
 
-# add ultrasonic
-add_subdirectory(Middlewares/Third_Party/stm32_ultrasonic)
-target_link_libraries(${PROJECT_NAME}.elf ultrasonic)
+# # add bldc
+# add_subdirectory(Middlewares/Third_Party/stm32_bldc)
+# target_link_libraries(${PROJECT_NAME}.elf bldc)
+
+# # add current sense
+# add_subdirectory(Middlewares/Third_Party/stm32_current_sense)
+# target_link_libraries(${PROJECT_NAME}.elf current_sense)
+
+# # add io expander
+# add_subdirectory(Middlewares/Third_Party/stm32_io_expander)
+# target_link_libraries(${PROJECT_NAME}.elf io_expander)
+
+# # add lcd
+# add_subdirectory(Middlewares/Third_Party/stm32_lcd)
+# target_link_libraries(${PROJECT_NAME}.elf lcd)
+
+# # add oxygen
+# add_subdirectory(Middlewares/Third_Party/stm32_oxygen)
+# target_link_libraries(${PROJECT_NAME}.elf oxygen)
+
+# # add power meter
+# add_subdirectory(Middlewares/Third_Party/stm32_power_meter)
+# target_link_libraries(${PROJECT_NAME}.elf power_meter)
+
+# # add ultrasonic
+# add_subdirectory(Middlewares/Third_Party/stm32_ultrasonic)
+# target_link_libraries(${PROJECT_NAME}.elf ultrasonic)
 
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
