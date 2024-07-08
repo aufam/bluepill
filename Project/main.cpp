@@ -1,22 +1,21 @@
 #include "main.hpp"
-#include "etl/keywords.h"
 
 namespace Project {
     etl::Tasks tasks;
-    etl::Mutex mutex; // global mutex
-    etl::String<128> f; // global text formatter
+    etl::Mutex mutex;
+    etl::String<128> f;
 
-    Oled oled { .i2c=periph::i2c2 };
+    Oled oled { .hi2c=hi2c2 };
     wizchip::Ethernet ethernet({
         .hspi=hspi1,
         .cs={.port=CS_GPIO_Port, .pin=CS_Pin},
         .rst={.port=RESET_GPIO_Port, .pin=RESET_Pin},
         .netInfo={ 
             .mac={0x00, 0x08, 0xdc, 0xff, 0xee, 0xdd},
-            .ip={192, 168, 151, 248},
+            .ip={10, 20, 30, 2},
             .sn={255, 255, 255, 0},
-            .gw={192, 168, 151, 1},
-            .dns={1, 1, 1, 1},
+            .gw={10, 20, 30, 1},
+            .dns={10, 20, 30, 1},
             .dhcp=NETINFO_STATIC,
         },
     });
@@ -35,20 +34,7 @@ namespace Project::periph {
     #endif
 }
 
-[[async]]
-static void heap_info() {
-    for (;;) {
-        etl::this_thread::sleep(100ms);
-        auto lock = mutex.lock().await();
-        
-        oled.setCursor({0, 0});
-        oled << f("h: %lu/%lu t: %lu\n", etl::heap::freeSize.get(), etl::heap::totalSize.get(), tasks.resources());
-        oled.setCursor({0, 4});
-    }
-}
-
-[[test]]
-extern void test_http_server();
+using namespace Project;
 
 extern "C" void project_init() {
     HAL_Delay(50);
@@ -67,14 +53,13 @@ extern "C" void project_init() {
     oled.init();
     mutex.init();
     ethernet.init();
-    ethernet.logger.function = [] (const char* str) { 
+    ethernet.logger.function = [](const char* str) { 
         auto lock = mutex.lock().await();
         oled.setCursor({0, 1});
         oled << str;
     };
 
-    test_http_server();
-    etl::async(&heap_info);
+    App::run("*");
 }
 
 extern "C" void panic(const char* msg) {
@@ -102,3 +87,26 @@ extern "C" void panic(const char* msg) {
     
     for (;;);
 }
+
+App::App(const char* name, App::function_t test) {
+    functions[cnt] = test;
+    names[cnt++] = name;
+}
+
+void App::run(const char* fil) {
+    auto filter = etl::string_view(fil);
+    if (filter.len() == 0)
+        return;
+    
+    for (int i = 0; i < cnt; ++i) {
+        auto test = functions[i];
+        auto name = names[i];
+
+        if (filter == name or (filter.back() == '*' and ::strncmp(name, filter.data(), filter.len() - 1) == 0))
+            test();
+    }
+}
+
+App::function_t App::functions[16] = {};
+const char* App::names[16] = {};
+int App::cnt = 0;

@@ -31,7 +31,12 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#ifdef F103_USE_CAN
+#undef HAL_PCD_MODULE_ENABLED
+#endif
+#ifdef F103_USE_USB
+#undef HAL_CAN_MODULE_ENABLED
+#endif
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

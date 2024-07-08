@@ -21,7 +21,7 @@ set(CMAKE_C_STANDARD 11)
 # user defines
 add_definitions(
     -DF103_USE_CAN                      # since F103 can't use CAN and USB at the same time, we have to choose one
-    -DETL_ASYNC_N_CHANNELS=4            # number of tasks that handle asynchronous functions
+    -DETL_ASYNC_N_CHANNELS=3            # number of tasks that handle asynchronous functions
     -DETL_ASYNC_TASK_THREAD_SIZE=384    # the size of each task
 )
 
@@ -119,37 +119,9 @@ target_link_libraries(${PROJECT_NAME}.elf oled)
 add_subdirectory(Middlewares/Third_Party/stm32_wizchip)
 target_link_libraries(${PROJECT_NAME}.elf wizchip)
 
-# # add modbus
-# add_subdirectory(Middlewares/Third_Party/stm32_modbus)
-# target_link_libraries(${PROJECT_NAME}.elf modbus)
-
-# # add bldc
-# add_subdirectory(Middlewares/Third_Party/stm32_bldc)
-# target_link_libraries(${PROJECT_NAME}.elf bldc)
-
-# # add current sense
-# add_subdirectory(Middlewares/Third_Party/stm32_current_sense)
-# target_link_libraries(${PROJECT_NAME}.elf current_sense)
-
-# # add io expander
-# add_subdirectory(Middlewares/Third_Party/stm32_io_expander)
-# target_link_libraries(${PROJECT_NAME}.elf io_expander)
-
-# # add lcd
-# add_subdirectory(Middlewares/Third_Party/stm32_lcd)
-# target_link_libraries(${PROJECT_NAME}.elf lcd)
-
-# # add oxygen
-# add_subdirectory(Middlewares/Third_Party/stm32_oxygen)
-# target_link_libraries(${PROJECT_NAME}.elf oxygen)
-
-# # add power meter
-# add_subdirectory(Middlewares/Third_Party/stm32_power_meter)
-# target_link_libraries(${PROJECT_NAME}.elf power_meter)
-
-# # add ultrasonic
-# add_subdirectory(Middlewares/Third_Party/stm32_ultrasonic)
-# target_link_libraries(${PROJECT_NAME}.elf ultrasonic)
+# add modbus
+add_subdirectory(Middlewares/Third_Party/stm32_modbus)
+target_link_libraries(${PROJECT_NAME}.elf modbus)
 
 # build hex and bin files
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
@@ -162,7 +134,7 @@ add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
 
 # flash using st-flash
 add_custom_target(flash
-    COMMAND st-flash --reset write ${BIN_FILE} 0x08000000
+    COMMAND st-flash write ${BIN_FILE} 0x08000000
     DEPENDS ${BIN_FILE}
 )
 

@@ -3,25 +3,15 @@
 
 #include "etl/async.h"
 #include "etl/mutex.h"
-#include "etl/heap.h"
 #include "periph/all.h"
 #include "oled/oled.h"
 #include "wizchip/ethernet.h"
 
 extern "C" {
-    extern char blinkSymbols[16];           ///< blink symbols from default task. '0' is off, '1' is on
-    extern int blinkIsRunning;              ///< default task running flag
+    extern char blinkSymbols[16];
+    extern int blinkIsRunning;
     extern uint32_t blinkDelay;
-
     void panic(const char* msg);
-}
-
-namespace Project {
-    extern etl::Tasks tasks;
-    extern etl::Mutex mutex;
-    extern etl::String<128> f;
-    extern Oled oled;
-    extern wizchip::Ethernet ethernet;
 }
 
 namespace Project::periph {
@@ -36,5 +26,30 @@ namespace Project::periph {
     extern CAN can;
     #endif
 }
+
+namespace Project {
+    extern etl::Tasks tasks;
+    extern etl::Mutex mutex;
+    extern etl::String<128> f;
+    extern Oled oled;
+    extern wizchip::Ethernet ethernet;
+    class App;
+}
+
+class Project::App {
+    typedef void(*function_t)();
+    static function_t functions[16];
+    static const char* names[16];
+    static int cnt;
+
+public:
+    App(const char* name, function_t test);
+    static void run(const char* filter = "*");
+};
+
+#define APP(name) \
+    static void unit_app_function_##name(); \
+    static ::Project::App unit_app_##name(#name, unit_app_function_##name); \
+    static void unit_app_function_##name()
 
 #endif // PROJECT_H
