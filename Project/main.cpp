@@ -89,14 +89,21 @@ extern "C" void panic(const char* msg) {
 }
 
 App::App(const char* name, App::function_t test) {
+    if (name == etl::string_view("")) {
+        panic("App name cannot be empty");
+    }
+    if (cnt == 16) {
+        panic("App buffer is full");
+    }
     functions[cnt] = test;
     names[cnt++] = name;
 }
 
 void App::run(const char* fil) {
     auto filter = etl::string_view(fil);
-    if (filter.len() == 0)
-        return;
+    if (filter.len() == 0) {
+        panic("App run filter token is not provided");
+    }
     
     for (int i = 0; i < cnt; ++i) {
         auto test = functions[i];
