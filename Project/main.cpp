@@ -58,8 +58,8 @@ extern "C" void project_init() {
         oled.setCursor({0, 1});
         oled << str;
     };
-
-    App::run("*");
+    
+    App::run();
 }
 
 extern "C" void panic(const char* msg) {
@@ -83,19 +83,19 @@ extern "C" void panic(const char* msg) {
         default: psc = 0;
     }
     auto restart_time = ((IWDG->RLR) * psc) / 32000;
-    oled << f("Restart in %d s\n", restart_time, IWDG->RLR);
+    oled << f("Restart in %d s\n", restart_time);
     
     for (;;);
 }
 
-App::App(const char* name, App::function_t test) {
+App::App(const char* name, App::function_t fn) {
     if (name == etl::string_view("")) {
         panic("App name cannot be empty");
     }
     if (cnt == 16) {
         panic("App buffer is full");
     }
-    functions[cnt] = test;
+    functions[cnt] = fn;
     names[cnt++] = name;
 }
 

@@ -23,6 +23,7 @@ add_definitions(
     -DF103_USE_CAN                      # since F103 can't use CAN and USB at the same time, we have to choose one
     -DETL_ASYNC_N_CHANNELS=3            # number of tasks that handle asynchronous functions
     -DETL_ASYNC_TASK_THREAD_SIZE=384    # the size of each task
+    -DPERIPH_ADC_N_CHANNELS=3           # the NUMBER OF ADC conversion
 )
 
 # Enable assembler files preprocessing

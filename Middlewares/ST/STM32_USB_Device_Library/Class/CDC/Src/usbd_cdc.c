@@ -667,6 +667,15 @@ static uint8_t  USBD_CDC_Setup(USBD_HandleTypeDef *pdev,
   return ret;
 }
 
+/* USER CODE BEGIN PRIVATE_FUNCTIONS_DECLARATION */
+#include "usbd_cdc_if.h"
+extern uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
+__weak void CDC_TransmitCplt_Callback(const uint8_t *pbuf, uint32_t len) {
+  UNUSED(pbuf);
+  UNUSED(len);
+}
+/* USER CODE END PRIVATE_FUNCTIONS_DECLARATION */
+
 /**
   * @brief  USBD_CDC_DataIn
   *         Data sent on non-control IN endpoint
@@ -692,6 +701,9 @@ static uint8_t  USBD_CDC_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
     else
     {
       hcdc->TxState = 0U;
+      /* USER CODE BEGIN 1 */
+      CDC_TransmitCplt_Callback(UserTxBufferFS, pdev->ep_in[epnum].total_length);
+      /* USER CODE END 1 */
     }
     return USBD_OK;
   }

@@ -10,7 +10,6 @@ static void heap_info() {
         
         oled.setCursor({0, 0});
         oled << f("h: %lu/%lu t: %lu\n", etl::heap::freeSize.get(), etl::heap::totalSize.get(), tasks.resources());
-        oled.setCursor({0, 4});
     }
 }
 

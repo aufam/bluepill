@@ -43,7 +43,7 @@ class Project::App {
     static int cnt;
 
 public:
-    App(const char* name, function_t test);
+    App(const char* name, function_t fn);
     static void run(const char* filter = "*");
 };
 

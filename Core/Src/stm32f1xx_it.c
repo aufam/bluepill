@@ -247,12 +247,18 @@ void DMA1_Channel6_IRQHandler(void)
 void USB_LP_CAN1_RX0_IRQHandler(void)
 {
   /* USER CODE BEGIN USB_LP_CAN1_RX0_IRQn 0 */
-
+  #if 0
   /* USER CODE END USB_LP_CAN1_RX0_IRQn 0 */
   HAL_CAN_IRQHandler(&hcan);
   HAL_PCD_IRQHandler(&hpcd_USB_FS);
   /* USER CODE BEGIN USB_LP_CAN1_RX0_IRQn 1 */
-
+  #endif
+  #ifdef F103_USE_USB
+  HAL_PCD_IRQHandler(&hpcd_USB_FS);
+  #endif
+  #ifdef F103_USE_CAN
+  HAL_CAN_IRQHandler(&hcan);
+  #endif
   /* USER CODE END USB_LP_CAN1_RX0_IRQn 1 */
 }
 
@@ -262,11 +268,11 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 void CAN1_RX1_IRQHandler(void)
 {
   /* USER CODE BEGIN CAN1_RX1_IRQn 0 */
-
+  #ifdef F103_USE_CAN
   /* USER CODE END CAN1_RX1_IRQn 0 */
   HAL_CAN_IRQHandler(&hcan);
   /* USER CODE BEGIN CAN1_RX1_IRQn 1 */
-
+  #endif
   /* USER CODE END CAN1_RX1_IRQn 1 */
 }
 
